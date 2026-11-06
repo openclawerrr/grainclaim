@@ -1,0 +1,153 @@
+# GrainClaim: setup and status
+
+_Last updated: November 6, 2026_
+
+This file records what's been set up so far, how a teammate gets running, how we work together, and what comes next. The full product spec is the GrainClaim demo spec (pipeline, data model, calculations, matching rules, demo script).
+
+---
+
+## What's set up
+
+### Accounts and services
+
+| Service | What exists | Access |
+|---|---|---|
+| GitHub | Private repo `openclawerrr/grainclaim` | Derrick (owner) + 2 invited collaborators |
+| Supabase | Project `grainclaim`, project ref `dmepqunvusduqwanqsce`. Postgres with PostGIS turned on (in the `extensions` schema) | Derrick; teammates to be invited |
+| Anthropic | Claude Console organization with an API key for ticket reading | Derrick; teammates to be invited |
+
+### In the repo
+
+- **Next.js app** (App Router, TypeScript, Tailwind), created with `create-next-app`. Run it with `npm run dev`, then open http://localhost:3000.
+- **shadcn/ui** set up for ready-made UI components (tables, buttons, tabs, dialogs).
+- **Libraries** (all listed in `package.json`, installed by `npm install`):
+
+| Library | Used for |
+|---|---|
+| `@supabase/supabase-js` | Reading and writing the database and photo storage |
+| `zod` | Defining what a ticket reading looks like; checking the AI's output |
+| `exifr` | Reading GPS location and time from uploaded photos |
+| `maplibre-gl` | The farm map |
+| `terra-draw`, `terra-draw-maplibre-gl-adapter` | Drawing field outlines on the map |
+| `@turf/turf` | Map math in the browser (point inside field, distances) |
+| `@anthropic-ai/sdk` | Sending ticket photos to Claude and getting values back |
+| `vitest` | Tests for the calculations and matching rules |
+| `supabase` | Command-line tool for database migrations |
+
+- **`supabase/` folder**: Supabase CLI config, plus `supabase/migrations/<timestamp>_init.sql`, the first database migration.
+
+### Database (first migration)
+
+12 tables, pushed to the Supabase project with `npx supabase db push --remote`:
+
+| Group | Tables |
+|---|---|
+| Farm map (permanent) | `insured`, `field`, `bin`, `buyer`, `truck` |
+| Season (yearly) | `policy`, `unit`, `field_season` |
+| Harvest | `trip`, `ticket` |
+| Integrity | `flag`, `audit_event` |
+
+Rules the database enforces on its own:
+
+- Field mapped acres are calculated from the outline; broken outlines are refused.
+- Bin capacity is calculated from diameter and eave height.
+- A truck can have only one open trip at a time.
+- A trip has exactly one origin (field or bin) and one destination (bin or buyer).
+- Ticket photos can't be replaced, and read values lock once saved. A wrong value gets a `misread` flag instead of an edit.
+- The same photo file can't be uploaded twice (SHA-256 fingerprint).
+- Every insert, change and delete is copied into `audit_event`, which can't be edited or deleted.
+- Row Level Security is on for every table. The public key can't read or write anything until login rules are added; server-side code uses the secret key.
+
+### Stack decisions (summary)
+
+Full one-page decision records still need writing in `docs/decisions/` (Phase 0 requirement).
+
+| Need | Choice | Main alternative | Why |
+|---|---|---|---|
+| App | Next.js + TypeScript + Tailwind + shadcn/ui | Streamlit or FastAPI (Python) | Largest ecosystem, one language front to back |
+| Database | Supabase Postgres + PostGIS | Document database | Answers "which field is this point in?" in SQL; links between tables enforce the ticket ← trip ← field chain |
+| Photo storage | Supabase Storage, files named by SHA-256 | S3 / Cloudflare R2 | Same service as the database; originals never change |
+| Reading tickets and forms | Claude API with structured outputs (JSON schema) | Azure Document Intelligence, AWS Textract | Handles handwriting and messy layouts; one service for tickets, FSA-578, Summary of Coverage, settlements |
+| Confidence per value | Arithmetic checks + a second independent read, not the model's self-rating | Model self-reported confidence | Research shows self-reported confidence is poorly calibrated |
+| Map | MapLibre + Terra Draw + Turf.js, Esri or USGS NAIP satellite imagery | Mapbox / Google Maps | Free, no API key |
+| Location | GPS from photo metadata (exifr) + clicking the map + a replay file | Native app GPS | No phone app for the demo |
+| PDF | Playwright printing the agent-view page | WeasyPrint | PDF matches the web page exactly |
+| Roles | Owner / Driver / Agent switcher | Supabase Auth logins | The demo only needs to switch views |
+| Tests | Vitest | pytest | Same language as the app |
+
+---
+
+## Getting a teammate running
+
+1. **Accept the invites**: GitHub (email), Supabase (email), Claude Console (email).
+2. **Install the tools.**
+   - Mac: install Homebrew from brew.sh, then `brew install git node gh` and `brew install --cask visual-studio-code`.
+   - Windows: install Git (git-scm.com), Node (nodejs.org), VS Code (code.visualstudio.com) and the GitHub CLI (cli.github.com).
+   - Node must be version 22 or newer: check with `node --version`.
+3. **Tell Git who you are**:
+   ```bash
+   git config --global user.name "Your Name"
+   git config --global user.email "you@example.com"
+   ```
+4. **Get the code**:
+   ```bash
+   gh auth login
+   gh repo clone openclawerrr/grainclaim
+   cd grainclaim
+   npm install
+   ```
+5. **Open it in VS Code**: File → Open Folder → `grainclaim`, then click Trust. Open the terminal with Control + `.
+6. **Create `.env.local`** in the project folder (see below), then run `npm run dev` and open http://localhost:3000.
+7. **Only if you'll push database changes**: `npx supabase login`, then `npx supabase link --project-ref dmepqunvusduqwanqsce`.
+
+Recommended VS Code extensions (optional): ESLint, Tailwind CSS IntelliSense, Live Share (for editing the same file together).
+
+### `.env.local` template
+
+Never commit this file (Git already ignores it). Get the Supabase values from Derrick in a private message; create your own Anthropic key in the Claude Console.
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://dmepqunvusduqwanqsce.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
+ANTHROPIC_API_KEY=sk-ant-...
+# Needed from the seed script onward (server-side only, never NEXT_PUBLIC_):
+SUPABASE_SECRET_KEY=sb_secret_...
+```
+
+---
+
+## How we work
+
+- **Pull first.** Start every session with `git checkout main` and `git pull`.
+- **Branch per task.** `git checkout -b short-task-name`, commit often, `git push -u origin short-task-name`, then `gh pr create`. A teammate reviews, then merge.
+- **Don't push straight to `main`.**
+- **After pulling, run `npm install` if `package.json` changed.**
+- **Database structure changes go in new migration files** (`npx supabase migration new name`), never by clicking in the Supabase dashboard, and never by editing a migration that's already been pushed. Whoever merges a migration runs `npx supabase db push --remote` and tells the team.
+- **The database is shared and live.** Everyone sees data changes instantly. The seed script (coming next) reloads the sample farm whenever data gets messy.
+- **Keys never go in Git, chats or screenshots.** If one leaks, delete it in Supabase or the Claude Console and make a new one.
+- **Split work by area** to avoid conflicts:
+
+| Person | Owns |
+|---|---|
+| A | Database, seed data, calculations, matching rules |
+| B | Ticket and settlement reading, review screen |
+| C | Farm map, trips and bins, agent report view |
+
+---
+
+## Next steps
+
+1. **Merge the schema.** Push the `database-schema` branch, open the pull request, merge it, and confirm the 12 tables appear in Supabase's Table Editor.
+2. **Seed script.** Load Dave's sample farm (North 80, South 40, Bins 3 and 4, Trucks 1 and 2, Main Street Elevator, the 2026 corn policy, Units 1 and 2) from `sample-data/`. Needs `SUPABASE_SECRET_KEY` in `.env.local`.
+3. **Calculations module with tests.** `lib/rules/`: net weight, wet bushels, elevator dry bushels, insurance production to count, bin estimate, guarantee.
+4. **Sample tickets.** Make about 6 SAMPLE scale tickets in Google Docs (one filled in by hand), print them, and photograph them with a phone so they carry real GPS and time.
+5. **Ticket-reading script.** Send one photo to Claude with a JSON schema and print the values. Write the correct answers for all sample tickets, compare two models, and record the result as the first decision record.
+6. **Phase 1 thin slice.** Upload page: hash and store the photo → read GPS and time → read the ticket → arithmetic checks → attach to a trip → calculate bushels → show one row in the Unit 1 total.
+7. **Decision records.** One page per stack choice in `docs/decisions/`.
+
+Then Phases 2–7 from the spec: farm map, season setup, trips and bins, tickets, settlements and Needs attention, production report and agent view.
+
+### Things to check
+
+- [ ] The Anthropic API key's expiry date (Claude Console → API Keys); make a new one before it lapses.
+- [ ] The Supabase free project pauses after a week without activity; open the dashboard the day before any demo.
