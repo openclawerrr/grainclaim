@@ -87,13 +87,16 @@ Demo deliverable: a working demo plus the code, in a GitHub repository. The team
 | Net weight | gross − tare |
 | Wet bushels | net lbs ÷ standard weight (corn 56, soybeans 60, wheat 60) |
 | Elevator dry bushels | wet bushels × (1 − buyer shrink per point × points above buyer's base moisture) |
-| Insurance production to count, corn | wet bushels × (1 − 1.2% per point above 15% moisture); 2% per point above 30% |
+| Insurance production to count, corn | wet bushels × (1 − reduction). Reduction is 1.2% per point from 15% to 30% moisture, plus 2% per point only for the points above 30% (32% moisture: 15 × 1.2% + 2 × 2% = 22%) |
 | Insurance production to count, soybeans | wet bushels × (1 − 1.2% per point above 13% moisture) |
+| Insurance production to count, wheat | No insurance moisture rule yet. GrainClaim reports an error rather than guess a rate |
 | Bin estimate | ≈ 0.63 × diameter² × grain depth (feet) |
-| Bin balance | estimated in ≈ ticketed out + measured remaining; flag a gap over 3% |
+| Bin balance | estimated in ≈ ticketed out + measured remaining; flag a gap over 3% of estimated in |
 | Unit production | sold and commercially stored (tickets) + measured farm-stored + fed (later) + appraised |
-| Unit yield | unit production ÷ planted acres |
+| Unit yield | unit production ÷ planted acres, using 100% of production (including a landlord's share), not the insured's share |
 | Guarantee | approved yield × coverage level × acres × share |
+| Insured's share of production | unit production to count × insured's share |
+| Shortfall | guarantee − insured's share of production to count, never below zero |
 
 Store raw gross, tare and moisture, and calculate the elevator and insurance numbers separately: they differ. Quality adjustments are out of scope.
 
