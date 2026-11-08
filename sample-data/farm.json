@@ -1,0 +1,50 @@
+{
+  "sample": true,
+  "note": "SAMPLE: made-up permanent farm layer for the GrainClaim demo (no fields; those are in farm.geojson). Not a real farm or business.",
+  "insured": {
+    "id": "5eed0000-0000-4000-8000-000000000101",
+    "name": "Dave's Farm (SAMPLE)",
+    "entity_type": "individual"
+  },
+  "buyers": [
+    {
+      "id": "5eed0000-0000-4000-8000-000000000102",
+      "name": "Main Street Elevator",
+      "address": "SAMPLE: Main Street, Nevada, IA",
+      "buyer_type": "elevator",
+      "location": [-93.451, 42.023]
+    }
+  ],
+  "bins": [
+    {
+      "id": "5eed0000-0000-4000-8000-000000000301",
+      "name": "Bin 3",
+      "location": [-93.4006, 42.0911],
+      "diameter_ft": 36,
+      "eave_height_ft": 24,
+      "expected_capacity_bu": 19633
+    },
+    {
+      "id": "5eed0000-0000-4000-8000-000000000302",
+      "name": "Bin 4",
+      "location": [-93.4003, 42.0911],
+      "diameter_ft": 30,
+      "eave_height_ft": 20,
+      "expected_capacity_bu": 11362
+    }
+  ],
+  "trucks": [
+    {
+      "id": "5eed0000-0000-4000-8000-000000000401",
+      "name": "Truck 1",
+      "capacity_bu": 1000,
+      "owner": "farm"
+    },
+    {
+      "id": "5eed0000-0000-4000-8000-000000000402",
+      "name": "Truck 2",
+      "capacity_bu": 900,
+      "owner": "farm"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # GrainClaim: setup and status
 
-_Last updated: November 6, 2026_
+_Last updated: November 8, 2026_
 
 This file records what's been set up so far, how a teammate gets running, how we work together, and what comes next. The full product spec is the GrainClaim demo spec (pipeline, data model, calculations, matching rules, demo script).
 
@@ -123,7 +123,7 @@ SUPABASE_SECRET_KEY=sb_secret_...
 - **Don't push straight to `main`.**
 - **After pulling, run `npm install` if `package.json` changed.**
 - **Database structure changes go in new migration files** (`npx supabase migration new name`), never by clicking in the Supabase dashboard, and never by editing a migration that's already been pushed. Whoever merges a migration runs `npx supabase db push --remote` and tells the team.
-- **The database is shared and live.** Everyone sees data changes instantly. The seed script (coming next) reloads the sample farm whenever data gets messy.
+- **The database is shared and live.** Everyone sees data changes instantly. `npm run seed` reloads the sample farm whenever data gets messy (see below).
 - **Keys never go in Git, chats or screenshots.** If one leaks, delete it in Supabase or the Claude Console and make a new one.
 - **Split work by area** to avoid conflicts:
 
@@ -133,12 +133,28 @@ SUPABASE_SECRET_KEY=sb_secret_...
 | B | Ticket and settlement reading, review screen |
 | C | Farm map, trips and bins, agent report view |
 
+### Sample farm (seed)
+
+`npm run seed` removes Dave's sample farm and loads it again from `sample-data/`. It needs `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SECRET_KEY` in `.env.local`.
+
+```bash
+npm run seed                            # the whole sample farm: farm-base, fields, season-2026
+npm run seed -- --through farm-base     # before demo beat 1: no fields and no season yet
+npm run seed -- --reset-only            # remove the sample farm
+npm run seed -- --help                  # all options
+```
+
+- **It replaces the sample farm for everyone.** Post in the team chat before running it.
+- It also removes rows the app added to the sample farm during a demo: imported fields, trips, tickets on those trips, and flags.
+- `audit_event` is never cleared, so it grows with every run.
+- `sample-data/README.md` lists every made-up value and how to add a demo stage.
+
 ---
 
 ## Next steps
 
 1. **Merge the schema.** Push the `database-schema` branch, open the pull request, merge it, and confirm the 12 tables appear in Supabase's Table Editor.
-2. **Seed script.** Load Dave's sample farm (North 80, South 40, Bins 3 and 4, Trucks 1 and 2, Main Street Elevator, the 2026 corn policy, Units 1 and 2) from `sample-data/`. Needs `SUPABASE_SECRET_KEY` in `.env.local`.
+2. ~~**Seed script.**~~ Done: `npm run seed` (see "Sample farm (seed)" above).
 3. **Calculations module with tests.** `lib/rules/`: net weight, wet bushels, elevator dry bushels, insurance production to count, bin estimate, guarantee.
 4. **Sample tickets.** Make about 6 SAMPLE scale tickets in Google Docs (one filled in by hand), print them, and photograph them with a phone so they carry real GPS and time.
 5. **Ticket-reading script.** Send one photo to Claude with a JSON schema and print the values. Write the correct answers for all sample tickets, compare two models, and record the result as the first decision record.

@@ -1,0 +1,62 @@
+{
+  "type": "FeatureCollection",
+  "name": "Dave's Farm field outlines (SAMPLE)",
+  "sample": true,
+  "note": "SAMPLE: made-up field outlines in Story County, Iowa, for the GrainClaim demo. Not a real farm.",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "5eed0000-0000-4000-8000-000000000201",
+      "properties": {
+        "name": "North 80",
+        "fsa_farm": "1234",
+        "fsa_tract": "5678",
+        "fsa_field": "3",
+        "state": "IA",
+        "county": "Story",
+        "expected_acres": 80.2,
+        "source": "sample",
+        "sample": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-93.412, 42.0903],
+            [-93.4022493, 42.0903],
+            [-93.4022493, 42.0939222],
+            [-93.412, 42.0939222],
+            [-93.412, 42.0903]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "5eed0000-0000-4000-8000-000000000202",
+      "properties": {
+        "name": "South 40",
+        "fsa_farm": "1234",
+        "fsa_tract": "6012",
+        "fsa_field": "1",
+        "state": "IA",
+        "county": "Story",
+        "expected_acres": 40,
+        "source": "sample",
+        "sample": true
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-93.412, 42.0860778],
+            [-93.4071371, 42.0860778],
+            [-93.4071371, 42.0897],
+            [-93.412, 42.0897],
+            [-93.412, 42.0860778]
+          ]
+        ]
+      }
+    }
+  ]
+}
