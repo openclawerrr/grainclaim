@@ -49,7 +49,7 @@ Before demo beat 1, run `--through farm-base`. A live import of `farm.geojson` w
 | Bins' location | Farmstead east of North 80, about 135 m from the nearest field edge |
 | Truck 1 / Truck 2 | 1,000 bu / 900 bu, owned by the farm |
 | Main Street Elevator | In Nevada, IA, about 5 miles from the fields |
-| Policy | 2026 corn, IA / Story, RP, 75% coverage, 100% price election, approved yield 180, basic units, no projected price yet |
+| Policy | 2026 corn, IA / Story, RP, 75% coverage, 100% price election, approved yield 180, basic units, projected price $4.62 (the 2026 RMA price) |
 | Unit 1 | North 80, owned, share 1 |
 | Unit 2 | South 40, crop share, Dave's share stored as 0.6667 (the column holds 4 decimals). Screens show guarantees rounded to whole bushels |
 | Field seasons | Corn, non-irrigated. Planted acres 80.20 and 40.00 (the FSA-578 numbers). Planting Apr 28 to May 2, 2026 |

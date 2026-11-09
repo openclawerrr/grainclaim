@@ -98,7 +98,7 @@ Use the numbers, not the company's name.
 
 ## Milestones 3 and 7: season setup and the report
 
-- **2026 projected price (RMA):** corn $4.62 per bushel, volatility factor 0.15; soybeans $11.09, volatility 0.13. Use $4.62 for the seed policy's projected price, which is currently empty.
+- **2026 projected price (RMA):** corn $4.62 per bushel, volatility factor 0.15; soybeans $11.09, volatility 0.13. The seed policy uses $4.62 as its projected price.
 - **Story County corn yields (NASS county estimates):** 207.1 bu/acre in 2022 and 211.4 in 2023. 2025 county yields were released around May 2026 and are in NASS Quick Stats. Use these for the "yield far from county" flag: Unit 1's roughly 110 bu/acre after hail is far below the county.
 - **Claims (Phase 8, stretch):** RMA's Corn Loss Adjustment Handbook contains the production worksheets adjusters fill in. Use it as the model for the claim packet.
 
