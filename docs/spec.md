@@ -315,7 +315,7 @@ The team is choosing the stack; this is a starting point to compare against, not
 
 ## Part 10. Demo script (about 3 minutes)
 
-1. **"Here's Dave's farm."** Dave uploads a photo of his FSA map and taps near his farm; outlines appear on the satellite map and he confirms them (backup: import the field file). He taps beside his farmstead and enters 36 ft to add Bin 3. He adds the FSA-578 and Summary of Coverage; the mismatch flag appears.
+1. **"Here's Dave's farm."** Dave uploads a photo of his FSA map and taps near his farm; outlines appear on the satellite map and he confirms them (backup: import the field file). He taps beside his farmstead and enters its size (36 ft across, 24 ft to the eave) to add Bin 3. He adds the FSA-578 and Summary of Coverage; the mismatch flag appears.
 2. **"Harvest."** Dave taps "Start harvesting" in North 80, sending grain to the elevator and Bin 3; a ticket photo reads itself and links to North 80. He starts South 40, picks Bin 3, and the mixing warning stops him.
 3. **"Payday."** The settlement match catches the missing load.
 4. **"Winter."** Dave taps Bin 3 and "Pickup" as the elevator's truck loads; the emailed ticket matches the waiting pickup by itself.
