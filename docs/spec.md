@@ -11,7 +11,7 @@ The diagram shows the order grain and records move through, not which record bel
 
 **The farmer records everything from his own phone.** Truck drivers and elevator staff never use GrainClaim. There are two roles: the farmer and his crop insurance agent.
 
-Demo deliverable: a working web demo (no phone app) plus the code, in a GitHub repository. The team must be able to explain why each tool and workflow was chosen, so keep a short decision record for each one (see Phase 0).
+Demo deliverable: a working web demo in a desktop browser (no phone app; the phone layout comes after the hackathon) plus the code, in a GitHub repository. The team must be able to explain why each tool and workflow was chosen, so keep a short decision record for each one (see Phase 0).
 
 ---
 
@@ -282,7 +282,7 @@ The team is choosing the stack; this is a starting point to compare against, not
 
 | Need | A reasonable default | Main alternative | Trade-off |
 |---|---|---|---|
-| App the farmer uses | Mobile-first web app (the demo is web only) | React Native or native app | Web is one codebase and easy to demo; native has better background GPS and camera control |
+| App the farmer uses | Web app; the demo runs in a desktop browser, with a phone layout after | React Native or native app | Web is one codebase and easy to demo; native has better background GPS and camera control |
 | Map | MapLibre or Leaflet with a satellite layer | Mapbox or Google Maps | Open libraries are free; commercial maps are polished but billed |
 | Database | PostgreSQL with PostGIS | A document database | PostGIS answers "is this point inside this field?" directly |
 | Photo storage | S3-compatible storage, hash stored in the database | Database blobs | Object storage scales and keeps originals untouched |
@@ -357,7 +357,7 @@ The farmer gives the minimum and gets answers on demand.
 
 **Each role sees only its job.** Farmer: Start harvesting, add tickets, totals, Needs attention and Approve. Agent: the finished report.
 
-**Phone first.** Large buttons, one column, usable one-handed in a combine cab. The demo is a web app in a browser, and every screen works at phone width.
+**Desktop browser for the demo, phone after.** The hackathon demo runs in a laptop browser, so screens are designed for that first. After the hackathon, every screen works at phone width: large buttons, one column, usable one-handed in a combine cab.
 
 ---
 
