@@ -49,7 +49,7 @@ The plan works backward from the 3-minute demo in `docs/spec.md` Part 10. Each m
 
 ### 2. Thin slice: one load, start to finish
 
-Upload a ticket photo: it's hashed and stored, GPS and time are read, the ticket is read and checked, linked to North 80 through a hard-coded harvest log entry, its bushels calculated, and the row saved. Uploads accept iPhone HEIC photos and convert them to JPEG before reading, since the Claude API doesn't accept HEIC. *Done when a sample photo adds a row to the Unit 1 total.* This proves the riskiest part early.
+Upload a ticket photo: it's hashed and stored, GPS and time are read, the ticket is read and checked, linked to North 80 through a hard-coded harvest log entry, its bushels calculated, and the row saved. Uploads accept iPhone HEIC photos and convert them to JPEG before reading, since the Claude API doesn't accept HEIC. Its migration also adds a ticket time column (time in, as printed), covered by the read-value lock. *Done when a sample photo adds a row to the Unit 1 total.* This proves the riskiest part early.
 
 ### 3. Beat 1: "Here's Dave's farm"
 
@@ -63,7 +63,7 @@ Upload a ticket photo: it's hashed and stored, GPS and time are read, the ticket
 
 - **Harvest log and trips (A, migration).** A harvest log table (field, start and end, destinations, location, trust). Trips get an optional truck and estimate, a way to record how each was created (bin load, ticket, pickup), and trust levels for location-confirmed and field-printed-on-ticket.
 - **Matching rules (A).** The Part 4 rules as tested pure functions: a ticket to its field by printed time against the harvest log (a field printed on the ticket wins), asking only near a field switch; a late ticket to a waiting pickup; the same-unit shortcut; ticket-to-settlement matching.
-- **Start harvesting (C).** One tap reads the location, pre-selects the field it falls in and pre-fills last time's destinations; picking the field on the map is the fallback, marked lower trust. At the end of the day, "How many loads went into Bin 3?" by truck creates one trip per load. A "Simulate location" switch drives it in the demo.
+- **Start harvesting (C).** One tap reads the location, pre-selects the field it falls in and pre-fills last time's destinations; picking the field on the map is the fallback, marked lower trust. At the end of the day, "How many loads went into Bin 3?" by truck creates one trip per load. A "Simulate location" switch drives it in the demo. The sample harvest log covers every sample ticket's printed time (Oct 12, 10:42 AM to Oct 13, 2:05 PM), with South 40 after.
 - **Bins and the mixing warning (C).** Bin contents tracked by unit and crop year. Choosing a bin with a different crop is blocked, carryover gets a warning, and a different unit stops with three choices. *Done when choosing Bin 3 for South 40 shows the choices.*
 - **Ticket review (B).** The photo next to the read values, with low-confidence values highlighted, and the field it came from pre-selected. The farmer taps "Looks right" or flags one value, never edits it. *Done when a printed and a handwritten ticket each link to the right field and unit.*
 
