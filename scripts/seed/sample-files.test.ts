@@ -65,6 +65,8 @@ describe("sample files", () => {
       0.75,
       180,
     ]);
+    // 2026 RMA projected price for corn (docs/sample-data-sources.md).
+    expect(p.projected_price).toBe(4.62);
     expect(files.season.units.map((u) => [u.unit_number, u.share_arrangement, u.insured_share])).toEqual([
       ["1", "owned", 1],
       ["2", "crop_share", 0.6667],

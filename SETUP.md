@@ -28,7 +28,7 @@ This file records what's been set up so far, how a teammate gets running, how we
 | `zod` | Defining what a ticket reading looks like; checking the AI's output |
 | `exifr` | Reading GPS location and time from uploaded photos |
 | `maplibre-gl` | The farm map |
-| `terra-draw`, `terra-draw-maplibre-gl-adapter` | Drawing field outlines on the map |
+| `terra-draw`, `terra-draw-maplibre-gl-adapter` | Adjusting proposed field outlines and drawing missing ones |
 | `@turf/turf` | Map math in the browser (point inside field, distances) |
 | `@anthropic-ai/sdk` | Sending ticket photos to Claude and getting values back |
 | `vitest` | Tests for the calculations and matching rules |
@@ -70,9 +70,9 @@ Full one-page decision records still need writing in `docs/decisions/` (Phase 0 
 | Reading tickets and forms | Claude API with structured outputs (JSON schema) | Azure Document Intelligence, AWS Textract | Handles handwriting and messy layouts; one service for tickets, FSA-578, Summary of Coverage, settlements |
 | Confidence per value | Arithmetic checks + a second independent read, not the model's self-rating | Model self-reported confidence | Research shows self-reported confidence is poorly calibrated |
 | Map | MapLibre + Terra Draw + Turf.js, Esri or USGS NAIP satellite imagery | Mapbox / Google Maps | Free, no API key |
-| Location | GPS from photo metadata (exifr) + clicking the map + a replay file | Native app GPS | No phone app for the demo |
+| Location | The browser's location, read once when the farmer taps "Start harvesting"; ticket times; photo GPS and time (exifr) as proof of capture; a "Simulate location" switch for the demo | Native app GPS | No phone app for the demo, and a web app can't track location in the background |
 | PDF | Playwright printing the agent-view page | WeasyPrint | PDF matches the web page exactly |
-| Roles | Owner / Driver / Agent switcher | Supabase Auth logins | The demo only needs to switch views |
+| Roles | Farmer / Agent switcher (drivers don't use the app) | Supabase Auth logins | The demo only needs to switch views |
 | Tests | Vitest | pytest | Same language as the app |
 
 ---
@@ -131,7 +131,7 @@ SUPABASE_SECRET_KEY=sb_secret_...
 |---|---|
 | A | Database, seed data, calculations, matching rules |
 | B | Ticket and settlement reading, review screen |
-| C | Farm map, trips and bins, agent report view |
+| C | Farm map, harvest log and bins, agent report view |
 
 ### Sample farm (seed)
 
@@ -153,15 +153,7 @@ npm run seed -- --help                  # all options
 
 ## Next steps
 
-1. **Merge the schema.** Push the `database-schema` branch, open the pull request, merge it, and confirm the 12 tables appear in Supabase's Table Editor.
-2. ~~**Seed script.**~~ Done: `npm run seed` (see "Sample farm (seed)" above).
-3. **Calculations module with tests.** `lib/rules/`: net weight, wet bushels, elevator dry bushels, insurance production to count, bin estimate, guarantee.
-4. **Sample tickets.** Make about 6 SAMPLE scale tickets in Google Docs (one filled in by hand), print them, and photograph them with a phone so they carry real GPS and time.
-5. **Ticket-reading script.** Send one photo to Claude with a JSON schema and print the values. Write the correct answers for all sample tickets, compare two models, and record the result as the first decision record.
-6. **Phase 1 thin slice.** Upload page: hash and store the photo → read GPS and time → read the ticket → arithmetic checks → attach to a trip → calculate bushels → show one row in the Unit 1 total.
-7. **Decision records.** One page per stack choice in `docs/decisions/`.
-
-Then Phases 2–7 from the spec: farm map, season setup, trips and bins, tickets, settlements and Needs attention, production report and agent view.
+See `docs/build-plan.md` for the milestones, who owns what, and what's done.
 
 ### Things to check
 

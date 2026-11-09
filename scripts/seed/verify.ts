@@ -1,7 +1,8 @@
 /**
  * Checks the database after a seed: the sample farm has exactly the rows the
  * loaded stages put in, there is one sample insured, and the values the
- * database calculates (field acres, bin capacity) match the sample files.
+ * database calculates or could round (field acres, bin capacity, the policy's
+ * projected price) match the sample files.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { collectSampleRows, DELETE_ORDER, type SampleTable } from "./reset";
@@ -64,9 +65,27 @@ export async function verifySampleFarm(
     );
   }
 
-  for (const row of rows.field) {
+  problems.push(...valueProblems(rows, files));
+  return { counts, problems };
+}
+
+/** A numeric column as a number. supabase-js returns numeric columns as numbers or strings. */
+const asNumber = (value: unknown) => (value === null || value === undefined ? null : Number(value));
+
+/**
+ * Values in the loaded rows that differ from sample-data/: the ones the
+ * database calculates (field acres, bin capacity) and ones a numeric column
+ * could round (the policy's projected price).
+ */
+export function valueProblems(
+  rows: Partial<Record<SampleTable, Record<string, unknown>[]>>,
+  files: SampleFiles,
+): string[] {
+  const problems: string[] = [];
+
+  for (const row of rows.field ?? []) {
     const feature = files.fields.find((f) => f.id === row.id);
-    if (feature && Number(row.mapped_acres) !== feature.properties.expected_acres) {
+    if (feature && asNumber(row.mapped_acres) !== feature.properties.expected_acres) {
       problems.push(
         `${feature.properties.name}: database calculates ${row.mapped_acres} acres, ` +
           `sample-data says ${feature.properties.expected_acres}`,
@@ -74,9 +93,9 @@ export async function verifySampleFarm(
     }
   }
 
-  for (const row of rows.bin) {
+  for (const row of rows.bin ?? []) {
     const bin = files.farm.bins.find((b) => b.id === row.id);
-    if (bin && Number(row.capacity_bu) !== bin.expected_capacity_bu) {
+    if (bin && asNumber(row.capacity_bu) !== bin.expected_capacity_bu) {
       problems.push(
         `${bin.name}: database calculates ${row.capacity_bu} bu, ` +
           `sample-data says ${bin.expected_capacity_bu}`,
@@ -84,5 +103,15 @@ export async function verifySampleFarm(
     }
   }
 
-  return { counts, problems };
+  const policy = files.season.policy;
+  for (const row of rows.policy ?? []) {
+    if (row.id === policy.id && asNumber(row.projected_price) !== policy.projected_price) {
+      problems.push(
+        `Policy ${policy.policy_number}: database has projected price ${row.projected_price ?? "empty"}, ` +
+          `sample-data says ${policy.projected_price ?? "empty"}`,
+      );
+    }
+  }
+
+  return problems;
 }

@@ -9,8 +9,14 @@ Everything in this folder is invented for the GrainClaim demo. Dave's Farm, its 
 | `farm.json` | The permanent farm layer without fields: the insured, Main Street Elevator, Bins 3 and 4, Trucks 1 and 2 | `farm-base` |
 | `farm.geojson` | North 80 and South 40 as field outlines with FSA numbers. Demo beat 1 imports this same file live | `fields` |
 | `season-2026.json` | The 2026 corn policy, Units 1 and 2, and a field season for each field | `season-2026` |
+| `documents-2026.json` | Every value on Dave's 2026 sample documents (6 scale tickets, the FSA-578, the Summary of Coverage, the settlement), keyed by document name. It's the answer key for the reading tests | Not loaded: the documents are read live in the demo |
+| `print/` | The documents as one-page PDFs, made from `documents-2026.json` by `npm run print-docs`. How to print, fill in and photograph them: [`print/README.md`](print/README.md) | Not loaded |
+| `photos/` | Phone photos of the printed tickets and FSA-578, named after each document (`ticket-3.jpg`). Inputs for the reading tests | Not loaded |
+| `reference/` | Real blank forms (the Wisconsin SAMPLE scale ticket, the FSA-578), for layout only | Not loaded |
 
 `season-2026.json` points to fields by name and to units by unit number, so it reads easily. The seed turns those into IDs.
+
+To change a document, edit `documents-2026.json`, run `npm run print-docs`, then reprint and re-photograph it. Never edit the PDFs by hand; `npx vitest run` fails when one is out of date.
 
 ## How it's marked SAMPLE
 
@@ -23,6 +29,8 @@ There's no `is_sample` column, so the markers are:
 - every row the seed creates has a fixed ID that starts with **`5eed0000-`**
 
 Bins, trucks, units and field seasons have no free-text column for a marker without renaming "Bin 3" or "Truck 1". They count as SAMPLE because they belong to the SAMPLE insured.
+
+Every sample document says "SAMPLE ONLY" at the top and bottom and carries a faint SAMPLE watermark. The FSA-578 also has a large "SAMPLE: NOT AN OFFICIAL USDA FORM" banner.
 
 ## Loading it
 
@@ -49,12 +57,16 @@ Before demo beat 1, run `--through farm-base`. A live import of `farm.geojson` w
 | Bins' location | Farmstead east of North 80, about 135 m from the nearest field edge |
 | Truck 1 / Truck 2 | 1,000 bu / 900 bu, owned by the farm |
 | Main Street Elevator | In Nevada, IA, about 5 miles from the fields |
-| Policy | 2026 corn, IA / Story, RP, 75% coverage, 100% price election, approved yield 180, basic units, no projected price yet |
+| Policy | 2026 corn, IA / Story, RP, 75% coverage, 100% price election, approved yield 180, basic units, projected price $4.62 (the 2026 RMA price) |
 | Unit 1 | North 80, owned, share 1 |
 | Unit 2 | South 40, crop share, Dave's share stored as 0.6667 (the column holds 4 decimals). Screens show guarantees rounded to whole bushels |
 | Field seasons | Corn, non-irrigated. Planted acres 80.20 and 40.00 (the FSA-578 numbers). Planting Apr 28 to May 2, 2026 |
+| Scale tickets | 6 North 80 loads to Main Street Elevator on Oct 12–13, 2026, each with a printed date and time: Truck 1 carries tickets 1, 3, 4 and 6, Truck 2 carries 2 and 5. About 5,720 wet bushels in all (5,535 elevator dry). Ticket 1 is the worked example in `lib/rules/ticket.test.ts`; ticket 3 is filled in by hand |
+| FSA-578 | North 80 at 80.20 acres (key 1, share 1.0000); South 40 at 40.00 acres (key 1 at 0.6667, key 2 Pat Landowner (SAMPLE) at 0.3333) |
+| Summary of Coverage | Sample Mutual Crop Insurance (fictional). Unit 1 at 80.00 acres, guarantee 10,800 bu; Unit 2 at 40.00 acres, 3,600 bu. Season setup uses the FSA-578's 80.20 acres, so Unit 1's guarantee becomes 10,827 bu |
+| Settlement | Main Street Elevator, contract SAMPLE-C-2611 at $4.18: 5 of the 6 tickets. Ticket 5 (No. 20941) is missing |
 
-Not loaded yet: the Summary of Coverage's 80.00 acres and the acre-mismatch flag, trips, tickets, elevator truck #22, the settlement and the hail notice. They belong to later stages or happen live in the demo.
+Not loaded yet: the harvest log, trips, tickets, the settlement, elevator truck #22's pickup and the hail notice. They belong to later stages or happen live in the demo. The documents in `documents-2026.json` aren't loaded either; the demo reads them live, so the acre-mismatch flag (80.20 vs 80.00) and the missing-load flag (ticket 5) come from reading them.
 
 ## Adding a demo stage
 
