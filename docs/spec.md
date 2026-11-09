@@ -32,13 +32,15 @@ Demo deliverable: a working web demo (no phone app) plus the code, in a GitHub r
 - Farm map (permanent): field outlines, FSA numbers, bins. Changes only when land is bought, sold, re-rented or renumbered.
 - Season (yearly): crop, planted acres, share, unit and guarantee for each field.
 
-**Outlines are proposed, then confirmed.** Field outlines come from the farmers.gov field file, or AI proposes them from a photo of the farmer's FSA map and public field outlines. The farmer adjusts or draws any outline, and nothing is used until he confirms it.
+**Outlines are proposed, then confirmed.** Field outlines come from the farmers.gov field file, or AI proposes them from a photo of the farmer's FSA map and public field outlines. The farmer adjusts or draws any outline, and nothing is used until he confirms it. He can reshape an outline (move its corners and edges) but never move a whole field. An edited outline must overlap the original by at least 90%; otherwise it's treated as a new field and flagged for the agent. The original is kept, and the agent sees every edit with the old and new acres. Editing an outline never changes insured acres, which come from the FSA-578 and Summary of Coverage.
 
 **Trips are the glue, and the farmer records them.** A trip is one load leaving a field or a bin. Every trip comes from the farmer's own records:
 - **Harvest log.** When he starts a field, he taps "Start harvesting". GrainClaim reads his phone's location once, picks the field he's in and asks where the grain is going (a buyer, a bin, or both). He's usually in that field, running the combine.
 - **Loads into a bin.** At the end of the day he says how many loads went into each bin; each becomes one trip from the field to the bin.
 - **Tickets.** A ticket links to the field that was being harvested at its printed date and time, creating and closing a trip in one step.
 - **Pickups.** When grain leaves a bin, he taps the bin and "Pickup"; the trip waits for its ticket.
+
+**The farmer has the final say on where grain came from.** GrainClaim pre-selects the field (from his location or the ticket's time) and he confirms or picks another. When he picks a different field, both answers are kept and the record is marked lower trust; when his pick puts the grain in a different unit, it's flagged, because moving production between units is what an adjuster checks.
 
 A ticket inherits the chain: ticket ← trip ← field, or ticket ← trip ← bin ← fields. The field's season gives the unit.
 
@@ -71,7 +73,7 @@ Season records (policy, units, field seasons) group the fields for one crop year
 |---|---|
 | **Insured** | Name as on policy, entity type, contact, linked agent |
 | **User** | Role: farmer or agent. The farmer records everything and approves sharing; the agent sees the finished report. Drivers don't use GrainClaim |
-| **Field** | Name, FSA farm / tract / field, state, county, boundary (GeoJSON polygon), mapped acres, legal description (section / township / range, from the map), acreage type flag (new breaking, native sod, CRP), source (farmers.gov file / AI-proposed / drawn), confirmed by the farmer, valid-from / valid-to |
+| **Field** | Name, FSA farm / tract / field, state, county, boundary (GeoJSON polygon), original boundary and edit history, mapped acres, legal description (section / township / range, from the map), acreage type flag (new breaking, native sod, CRP), source (farmers.gov file / AI-proposed / drawn), confirmed by the farmer, valid-from / valid-to |
 | **Bin** | Name, GPS point, diameter, eave height, floor type, capacity (calculated), photo |
 | **Truck** | Name or number, capacity in bushels, owner (farm or buyer) |
 | **Buyer** | Name, address, GPS point, type (elevator, ethanol plant, feedlot, processor) |
@@ -160,9 +162,11 @@ The farmer taps the bin and "Pickup" when a buyer's truck loads; the trip waits.
 | Choosing a bin that holds a different unit | Stop with three choices: use another bin / request measurement first (notifies agent or adjuster, bin marked "waiting for measurement") / mix anyway (recorded as mixed, estimated split kept, flagged in the packet) |
 | Harvest started by picking the field on the map, with no location match | Marked lower trust |
 | A ticket that could have come from two units and the farmer can't tell | Flag possibly mixed load |
+| Farmer picks a different field than his location or the ticket's time suggests | Keep both answers, mark lower trust; flag if the pick changes the unit |
 | End of a harvest day with a bin in the log | Ask how many loads went into it, by truck |
 | Acres differ between FSA-578, Summary of Coverage and map | Flag before harvest |
 | Mapped field not on the FSA-578 | Flag possible unreported or uninsured acres |
+| Edited outline overlaps its original by less than 90% | Treat as a new field; flag for the agent |
 | Low-confidence read | Highlight for review |
 | Duplicate ticket (buyer + number + date) | Flag |
 | Edited photo or screenshot | Flag |
@@ -214,7 +218,7 @@ Each phase ends with something that works end to end. Build a thin version of th
 ### Phase 2: Farm map
 - Import a field file (GeoJSON from farmers.gov). Fields show as translucent, clickable outlines over satellite imagery.
 - AI-proposed outlines: the farmer uploads a photo of his FSA map and taps roughly where the farm is. GrainClaim loads public field outlines nearby (USDA Crop Sequence Boundaries), and Claude reads the FSA map's field numbers and acres and pairs them with those outlines. A map photo has no coordinates, so the public outlines are what place it.
-- The farmer adjusts any outline or draws a missing one (Terra Draw). Nothing is used until he confirms it; acres are recalculated from the confirmed outline.
+- The farmer adjusts any outline or draws a missing one (Terra Draw): corners and edges only, never moving a whole field, keeping at least 90% overlap with the original. The original is kept. Nothing is used until he confirms it; acres are recalculated from the confirmed outline.
 - Show FSA numbers, mapped acres and legal description.
 - Shape checks: overlaps, broken outlines.
 - Add bins at a point with size; add trucks.
@@ -339,11 +343,11 @@ The farmer gives the minimum and gets answers on demand.
 | Settlement | Photographs or uploads it | Matches tickets and flags missing loads |
 | Report | Reviews it and taps Approve | Locks the report and shares it with the agent |
 
-**Select on the map; draw only to fix.** Fields appear as translucent, clickable outlines over satellite imagery. The farmer taps a field to select it or see its details. Outlines come from the farmers.gov file or are proposed by AI from his FSA map; he adjusts or draws one only when it's wrong or missing.
+**Select on the map; draw only to fix.** Fields appear as translucent, clickable outlines over satellite imagery. The farmer taps a field to select it or see its details. Outlines come from the farmers.gov file or are proposed by AI from his FSA map; he adjusts or draws one only when it's wrong or missing. He can reshape an outline but not move it.
 
 **Defaults everywhere.** Pre-fill the most likely answer: the field he's standing in, last time's destinations, truck capacity. The farmer changes only what's wrong.
 
-**Confirm, don't type.** Read values appear beside the photo. The farmer taps "Looks right" or flags one value. Only low-confidence values are highlighted. Where a ticket came from is pre-selected the same way.
+**Confirm, don't type.** Read values appear beside the photo. The farmer taps "Looks right" or flags one value. Only low-confidence values are highlighted. Where a ticket came from is pre-selected the same way; he can change it, and the app's suggestion is kept beside his choice.
 
 **Show only what needs action.** The farmer's home screen is the Needs attention list and the season totals. Details (the record chain, the math behind a number) open on tap.
 
