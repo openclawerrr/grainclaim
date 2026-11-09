@@ -301,7 +301,7 @@ The team is choosing the stack; this is a starting point to compare against, not
 - **South 40**, rented on crop share (Dave 2/3, landlord 1/3), Unit 2
 - **Bin 3**, 36 ft; **Bin 4**, 30 ft
 - **Truck 1**, 1,000 bu; **Truck 2**, 900 bu
-- Field map: the farmers.gov field file, plus a photo of Dave's FSA map for AI-proposed outlines
+- Field map: a photo of Dave's FSA map (SAMPLE) for AI-proposed outlines, with the farmers.gov field file as the backup. Bin 3 is added live in beat 1
 - Harvest log: North 80 on Oct 12–13, going to Main Street Elevator and Bin 3; then South 40, where choosing Bin 3 fires the mixing warning
   - 6 loads North 80 → Main Street Elevator (about 5,800 bu), each with a ticket
   - 3 loads North 80 → Bin 3 (about 3,000 bu), counted at the end of the day
@@ -315,7 +315,7 @@ The team is choosing the stack; this is a starting point to compare against, not
 
 ## Part 10. Demo script (about 3 minutes)
 
-1. **"Here's Dave's farm."** Import the field file (or upload his FSA map photo and confirm the proposed outlines); add the FSA-578 and Summary of Coverage; the mismatch flag appears.
+1. **"Here's Dave's farm."** Dave uploads a photo of his FSA map and taps near his farm; outlines appear on the satellite map and he confirms them (backup: import the field file). He taps beside his farmstead and enters 36 ft to add Bin 3. He adds the FSA-578 and Summary of Coverage; the mismatch flag appears.
 2. **"Harvest."** Dave taps "Start harvesting" in North 80, sending grain to the elevator and Bin 3; a ticket photo reads itself and links to North 80. He starts South 40, picks Bin 3, and the mixing warning stops him.
 3. **"Payday."** The settlement match catches the missing load.
 4. **"Winter."** Dave taps Bin 3 and "Pickup" as the elevator's truck loads; the emailed ticket matches the waiting pickup by itself.

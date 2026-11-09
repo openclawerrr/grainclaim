@@ -6,7 +6,7 @@ The plan works backward from the 3-minute demo in `docs/spec.md` Part 10. Each m
 
 | Demo beat | What the audience sees | Milestone |
 |---|---|---|
-| 1. "Here's Dave's farm." | Field file imported (or outlines proposed from his FSA map photo); FSA-578 and Summary of Coverage read; acre mismatch flag | 3 |
+| 1. "Here's Dave's farm." | Outlines proposed from Dave's FSA map photo (backup: field file import); Bin 3 added live; FSA-578 and Summary of Coverage read; acre mismatch flag | 3 |
 | 2. "Harvest." | "Start harvesting" in North 80; a ticket photo reads itself and links to North 80; choosing Bin 3 for South 40 fires the mixing warning | 4 |
 | 3. "Payday." | The settlement match catches the missing load | 5 |
 | 4. "Winter." | Dave taps Bin 3 and "Pickup"; the late ticket matches the waiting pickup by itself | 6 |
@@ -54,8 +54,8 @@ Upload a ticket photo: it's hashed and stored, GPS and time are read, the ticket
 ### 3. Beat 1: "Here's Dave's farm"
 
 - **Farm map (C).** Satellite map with each field as a translucent, clickable outline; tapping one shows its FSA numbers, acres and legal description. Fields come from importing the farmers.gov file. The farmer can reshape an outline or draw a missing one with Terra Draw: corners and edges only, never moving a whole field, keeping at least 90% overlap with the original (kept for the agent). Acres are recalculated from the confirmed outline.
-- **AI-proposed outlines (B and C, migration with A).** The farmer uploads a photo of his FSA map and taps roughly where the farm is. The app loads public field outlines nearby (USDA Crop Sequence Boundaries), Claude reads the map's field numbers and acres and pairs them with those outlines, and the farmer adjusts and confirms. Needs a sample FSA map in `sample-data/` and a new field `source` value. *Done when the sample FSA map photo produces North 80 and South 40 outlines that Dave can confirm.*
-- **Farm setup by the farmer (C).** A farm name on first run; bins added by tapping the map and entering their size; trucks added with a name and capacity; buyers created automatically from the first ticket that names them. *Done when Dave's farm can be set up through the app alone, starting from an empty database.*
+- **AI-proposed outlines (B and C, migration with A).** The farmer uploads a photo of his FSA map and taps roughly where the farm is. The app loads public field outlines nearby (USDA Crop Sequence Boundaries), Claude reads the map's field numbers and acres and pairs them with those outlines, and the farmer adjusts and confirms. Needs a sample FSA map in `sample-data/` and a new field `source` value. This opens the demo. The sample FSA map is printed and photographed like the tickets (`fsa-map.jpg`). In the demo, the nearby outlines come from a sample file holding North 80's and South 40's exact outlines plus a few neighbors, so they measure 80.20 and 40.00 and only the planned mismatch flag fires. *Done when the sample FSA map photo produces North 80 and South 40 outlines that Dave can confirm.*
+- **Farm setup by the farmer (C).** A farm name on first run; bins added by tapping the map and entering their size; trucks added with a name and capacity; buyers created automatically from the first ticket that names them. Bin 3 is added live in beat 1, so the seed (A) loads it in its own stage after `farm-base`, and `--through farm-base` leaves it out. *Done when Dave's farm can be set up through the app alone, starting from an empty database.*
 - **Reading the FSA-578 and Summary of Coverage (B).** Same approach as the ticket reader, with answer keys and scores.
 - **Season setup (A).** The two documents create the policy, units and field seasons, matched to fields by FSA number. Guarantees are calculated, and acre or share mismatches are flagged. *Done when the sample documents create Units 1 and 2 with guarantees of 10,827 and 3,600 bushels and one acre-mismatch flag.*
 
@@ -95,6 +95,6 @@ Upload a ticket photo: it's hashed and stored, GPS and time are read, the ticket
 
 ## If time runs short
 
-Cut in this order: the Phase 8 claim packet (not in the demo script), beat 4, AI-proposed outlines (the farmers.gov import stays), PDF and CSV export, then the year-over-year view and offline mode.
+Cut in this order: the Phase 8 claim packet (not in the demo script), beat 4, PDF and CSV export, the year-over-year view and offline mode, then AI-proposed outlines (beat 1 falls back to the farmers.gov import).
 
 Never cut: the chain view, the mismatch, mixing and missing-load flags, and the approval.
