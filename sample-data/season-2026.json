@@ -1,0 +1,60 @@
+{
+  "sample": true,
+  "note": "SAMPLE: made-up 2026 corn season for the GrainClaim demo. Field seasons point to fields by name (farm.geojson) and to units by unit number.",
+  "policy": {
+    "id": "5eed0000-0000-4000-8000-000000000501",
+    "crop": "corn",
+    "state": "IA",
+    "county": "Story",
+    "crop_year": 2026,
+    "policy_number": "SAMPLE-2026-CORN",
+    "plan": "RP",
+    "coverage_level": 0.75,
+    "price_election": 1.0,
+    "unit_structure": "basic",
+    "approved_yield": 180,
+    "projected_price": null
+  },
+  "units": [
+    {
+      "id": "5eed0000-0000-4000-8000-000000000601",
+      "unit_number": "1",
+      "unit_type": "basic",
+      "practice": "non-irrigated",
+      "share_arrangement": "owned",
+      "insured_share": 1
+    },
+    {
+      "id": "5eed0000-0000-4000-8000-000000000602",
+      "unit_number": "2",
+      "unit_type": "basic",
+      "practice": "non-irrigated",
+      "share_arrangement": "crop_share",
+      "insured_share": 0.6667
+    }
+  ],
+  "field_seasons": [
+    {
+      "id": "5eed0000-0000-4000-8000-000000000701",
+      "field": "North 80",
+      "unit": "1",
+      "crop": "corn",
+      "planted_acres": 80.2,
+      "planting_date": "2026-04-28",
+      "planting_completed_date": "2026-05-02",
+      "practice": "non-irrigated",
+      "insured": true
+    },
+    {
+      "id": "5eed0000-0000-4000-8000-000000000702",
+      "field": "South 40",
+      "unit": "2",
+      "crop": "corn",
+      "planted_acres": 40,
+      "planting_date": "2026-04-28",
+      "planting_completed_date": "2026-05-02",
+      "practice": "non-irrigated",
+      "insured": true
+    }
+  ]
+}

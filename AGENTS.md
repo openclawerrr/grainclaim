@@ -29,6 +29,7 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 - `lib/db/`: database queries
 - `supabase/migrations/`: database structure changes
 - `sample-data/`: Dave's sample farm, sample ticket photos, harvest replay file. Everything in it is made up and marked SAMPLE.
+- `scripts/seed/`: `npm run seed`, which resets and loads the sample farm in stages (server-side, uses `SUPABASE_SECRET_KEY`). New demo stages go at the end of `STAGES` in `stages.ts`.
 - `docs/decisions/`: one-page decision record per stack choice (what we picked, the main alternative, why)
 
 ### Rules
