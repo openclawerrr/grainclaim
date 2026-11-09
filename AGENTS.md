@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## GrainClaim project rules
 
-GrainClaim is a demo of one record pipeline for a farmer: farm map → season setup → harvest log, bins and trips → scale tickets → settlements → crop insurance production report. The demo is a web app only. Before starting any feature, read `docs/spec.md`. It defines the data model (Part 2), calculations (Part 3), matching rules (Part 4), flags (Part 5), sample data (Part 9), the demo script (Part 10) and UI principles (Part 11). `docs/build-plan.md` lists the milestones. `SETUP.md` covers setup, environment variables and team workflow.
+GrainClaim is a demo of one record pipeline for a farmer: farm map → season setup → harvest log, bins and trips → scale tickets → settlements → crop insurance production report. The demo is a web app in a desktop browser, built for a hackathon: build only what the demo needs, and leave anything listed under "After the hackathon" in `docs/build-plan.md` for later. Before starting any feature, read `docs/spec.md`. It defines the data model (Part 2), calculations (Part 3), matching rules (Part 4), flags (Part 5), sample data (Part 9), the demo script (Part 10) and UI principles (Part 11). `docs/build-plan.md` lists the milestones. `SETUP.md` covers setup, environment variables and team workflow.
 
 ### Stack
 
@@ -69,4 +69,4 @@ These apply to every screen. Details are in `docs/spec.md` Parts 1, 4 and 11.
 - **Confirm, don't type.** Read values appear beside the photo; the farmer taps "Looks right" or flags one value, never edits it.
 - **Every warning says what's wrong in one plain sentence** and offers its fixes as buttons.
 - **Everything the seed loads** (farm name, fields, bins, trucks, buyers) must also be possible for the farmer to enter through the app.
-- **Phone first:** large buttons, one column, works at phone width.
+- **Desktop browser for the demo:** design screens for a laptop browser with clear, large controls. Phone layout comes after the hackathon; don't spend time on it now.
