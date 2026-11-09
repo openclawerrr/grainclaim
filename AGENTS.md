@@ -34,6 +34,7 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
   - `photos/`: phone photos of the printed documents, named after them (`ticket-3.jpg`). Inputs for reading tests.
   - `reference/`: real blank forms, for layout only. Never copy a real company's name or design.
 - `scripts/print/`: `npm run print-docs`, which turns `documents-2026.json` into the PDFs.
+- `scripts/read-tickets/`: `npm run read-ticket -- <photo>`, which reads one ticket photo and prints its values and checks, and `npm run score-tickets`, which reads every sample ticket photo and scores each model against `documents-2026.json`. Both call the Claude API (server-side, uses `ANTHROPIC_API_KEY`) and cost money.
 - `scripts/seed/`: `npm run seed`, which resets and loads the sample farm in stages (server-side, uses `SUPABASE_SECRET_KEY`). New demo stages go at the end of `STAGES` in `stages.ts`.
 - `docs/decisions/`: one-page decision record per stack choice (what we picked, the main alternative, why)
 

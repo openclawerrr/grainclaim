@@ -9,7 +9,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "seed": "tsx scripts/seed/index.ts",
-    "print-docs": "tsx scripts/print/index.ts"
+    "print-docs": "tsx scripts/print/index.ts",
+    "read-ticket": "tsx scripts/read-tickets/index.ts read",
+    "score-tickets": "tsx scripts/read-tickets/index.ts score"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

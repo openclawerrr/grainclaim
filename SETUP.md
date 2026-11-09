@@ -60,7 +60,7 @@ Rules the database enforces on its own:
 
 ### Stack decisions (summary)
 
-Full one-page decision records still need writing in `docs/decisions/` (Phase 0 requirement).
+One-page decision records go in `docs/decisions/` (Phase 0 requirement). Written so far: [which model reads tickets](docs/decisions/document-reading-model.md). The rest still need writing.
 
 | Need | Choice | Main alternative | Why |
 |---|---|---|---|
