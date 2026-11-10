@@ -11,7 +11,9 @@
     "seed": "tsx scripts/seed/index.ts",
     "print-docs": "tsx scripts/print/index.ts",
     "read-ticket": "tsx scripts/read-tickets/index.ts read",
-    "score-tickets": "tsx scripts/read-tickets/index.ts score"
+    "score-tickets": "tsx scripts/read-tickets/index.ts score",
+    "read-document": "tsx scripts/read-documents/index.ts read",
+    "score-documents": "tsx scripts/read-documents/index.ts score"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",
