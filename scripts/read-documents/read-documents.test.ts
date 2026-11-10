@@ -49,12 +49,15 @@ describe("parseArgs", () => {
 
   it("read takes the kind from --kind when the name doesn't say, or says otherwise", () => {
     expect(parseArgs(["read", "IMG_0412.jpg", "--kind", "fsa-578"])).toMatchObject({ document: "fsa_578" });
+    expect(parseArgs(["read", "IMG_0413.jpg", "--kind", "fsa-map"])).toMatchObject({ document: "fsa_map", model: "haiku" });
     expect(parseArgs(["read", "fsa-578.jpg", "--kind=summary-of-coverage"])).toMatchObject({
       document: "summary_of_coverage",
     });
   });
 
   it("tells a document's kind from its file name", () => {
+    expect(kindFromFileName("sample-data/photos/fsa-map.jpg")).toBe("fsa_map");
+    expect(kindFromFileName("FSA Map 2026.pdf")).toBe("fsa_map");
     expect(kindFromFileName("photos/FSA578 2026.jpeg")).toBe("fsa_578");
     expect(kindFromFileName("Summary of Coverage.pdf")).toBe("summary_of_coverage");
     expect(kindFromFileName("fsa-578/scan.jpg")).toBeNull();
@@ -90,34 +93,35 @@ describe("matchDocuments", () => {
   const photos = readdirSync(path.resolve("sample-data", "photos"));
   const prints = readdirSync(path.resolve("sample-data", "print"));
 
-  it("pairs the FSA-578 with its photo and the Summary of Coverage with its PDF, and leaves the rest", () => {
+  it("pairs the FSA map and FSA-578 with their photos and the Summary of Coverage with its PDF, and leaves the rest", () => {
     const match = matchDocuments(photos, prints, documents);
     expect(match.problems).toEqual([]);
     expect(match.documents.map((d) => [d.name, d.kind, d.file, d.expected.length])).toEqual([
+      ["fsa-map", "fsa_map", "photos/fsa-map.jpg", 19],
       ["fsa-578", "fsa_578", "photos/fsa-578.jpg", 36],
       ["summary-of-coverage", "summary_of_coverage", "print/summary-of-coverage.pdf", 43],
     ]);
   });
 
-  it("leaves out the FSA map, which has no reader yet, whether or not its photo is there", () => {
+  it("reads the FSA map from its photo, with the answer key's 19 values", () => {
     expect(documents.documents["fsa-map"]).toMatchObject({ kind: "fsa_map", delivery: "photo" });
-    expect(Object.keys(DOCUMENT_KINDS)).not.toContain("fsa_map");
-    expect(kindFromFileName("sample-data/photos/fsa-map.jpg")).toBeNull();
-    for (const photoFiles of [photos, [...photos.filter((f) => f !== "fsa-map.jpg"), "fsa-map.jpg"]]) {
-      const match = matchDocuments(photoFiles, prints, documents);
-      expect(match.problems).toEqual([]);
-      expect(match.documents.map((d) => d.name)).toEqual(["fsa-578", "summary-of-coverage"]);
-    }
-    // Without the photo it still isn't asked for.
-    expect(matchDocuments(["fsa-578.jpg"], ["summary-of-coverage.pdf"], documents).problems).toEqual([]);
+    expect(Object.keys(DOCUMENT_KINDS)).toEqual(["fsa_map", "fsa_578", "summary_of_coverage"]);
+    const map = matchDocuments(photos, prints, documents).documents.find((d) => d.name === "fsa-map")!;
+    expect(map.expected.map((v) => v.label)).toContain("field 1234/5678/3: acres");
+    expect(map.expected.find((v) => v.label === "tract 1234/6012: cropland_acres")!.value).toBe(40);
+    // Without its photo it is asked for, like any other document.
+    expect(matchDocuments(["fsa-578.jpg"], ["summary-of-coverage.pdf"], documents).problems).toEqual([
+      "fsa-map has no photo. Expected sample-data/photos/fsa-map.jpg.",
+    ]);
   });
 
   it("reports a document with no file, and one with two photos", () => {
     expect(matchDocuments(["ticket-1.jpg"], ["fsa-578.pdf"], documents).problems).toEqual([
+      "fsa-map has no photo. Expected sample-data/photos/fsa-map.jpg.",
       "fsa-578 has no photo. Expected sample-data/photos/fsa-578.jpg.",
       "summary-of-coverage has no PDF. Expected sample-data/print/summary-of-coverage.pdf.",
     ]);
-    expect(matchDocuments(["fsa-578.jpg", "fsa-578.JPEG"], prints, documents).problems).toEqual([
+    expect(matchDocuments(["fsa-map.jpg", "fsa-578.jpg", "fsa-578.JPEG"], prints, documents).problems).toEqual([
       '"fsa-578" has more than one photo.',
     ]);
   });
@@ -137,7 +141,9 @@ describe("the report", () => {
     values: scoreValues(fsa578Values(read), expected),
     checks: checkFsa578(read),
   });
-  const coverageKey = matchDocuments(["fsa-578.jpg"], ["summary-of-coverage.pdf"], documents).documents[1].expected;
+  const coverageKey = matchDocuments(["fsa-578.jpg"], ["summary-of-coverage.pdf"], documents).documents.find(
+    (d) => d.name === "summary-of-coverage",
+  )!.expected;
   const coverage = (run: number, failure: string | null): ScoredDocumentRead => ({
     document: "summary-of-coverage",
     run,

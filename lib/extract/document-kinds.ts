@@ -1,16 +1,19 @@
 /**
- * The documents that are read as a whole form: the FSA-578 and the Summary of
- * Coverage. Each kind has a reader, a list of its values by name, and checks.
- * (Tickets have their own reader and scorer; see read-ticket.ts.)
+ * The documents that are read as a whole: the FSA map, the FSA-578 and the
+ * Summary of Coverage. Each kind has a reader, a list of its values by name,
+ * and checks. (Tickets have their own reader and scorer; see read-ticket.ts.)
  *
  * Server-side only, because the readers call Claude.
  */
 import type { DocumentCheck } from "../rules/document-checks";
 import { checkFsa578 } from "../rules/fsa-578-checks";
+import { checkFsaMap } from "../rules/fsa-map-checks";
 import { checkSummaryOfCoverage } from "../rules/summary-of-coverage-checks";
 import { fsa578ReadSchema, fsa578Values } from "./fsa-578-schema";
+import { fsaMapReadSchema, fsaMapValues } from "./fsa-map-schema";
 import type { ReadOptions, ReadResult } from "./read";
 import { readFsa578 } from "./read-fsa-578";
+import { readFsaMap } from "./read-fsa-map";
 import { readSummaryOfCoverage } from "./read-summary-of-coverage";
 import type { NamedValue } from "./score-document";
 import { summaryOfCoverageReadSchema, summaryOfCoverageValues } from "./summary-of-coverage-schema";
@@ -38,6 +41,12 @@ function withValues<T>(result: ReadResult<T>, describe: (values: T) => ReadDocum
 
 /** Keyed like `kind` in sample-data/documents-2026.json. */
 export const DOCUMENT_KINDS = {
+  fsa_map: {
+    title: "FSA map",
+    read: async (file, options) =>
+      withValues(await readFsaMap(file, options), (map) => ({ values: fsaMapValues(map), checks: checkFsaMap(map) })),
+    named: (answerKey) => fsaMapValues(fsaMapReadSchema.parse(answerKey)),
+  },
   fsa_578: {
     title: "FSA-578",
     read: async (file, options) =>
