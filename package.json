@@ -10,6 +10,7 @@
     "test": "vitest run",
     "seed": "tsx scripts/seed/index.ts",
     "print-docs": "tsx scripts/print/index.ts",
+    "place-fields": "tsx scripts/outlines/place-fields.ts",
     "build-outlines": "tsx scripts/outlines/index.ts",
     "read-ticket": "tsx scripts/read-tickets/index.ts read",
     "score-tickets": "tsx scripts/read-tickets/index.ts score",

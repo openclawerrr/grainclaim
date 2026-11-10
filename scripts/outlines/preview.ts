@@ -9,7 +9,8 @@
  * which is why it is here and not on the printed map.
  */
 import { centerOfMass } from "@turf/turf";
-import { acresOf, type CsbFeature, type LonLat, type NearbyOutlines } from "./outlines";
+import { databaseAcres } from "./acres";
+import type { CsbFeature, LonLat, NearbyOutlines } from "./outlines";
 
 /**
  * MapLibre 5, not the app's version 6. Version 6 starts its worker from a
@@ -44,7 +45,7 @@ const twoPlaces = (n: number) => n.toFixed(2);
 export function previewLabels({ outlines, fields }: Pick<PreviewInput, "outlines" | "fields">) {
   return outlines.features.map((outline) => {
     const at = centerOfMass({ type: "Feature", properties: {}, geometry: outline.geometry }).geometry.coordinates;
-    const measured = acresOf(outline.geometry);
+    const measured = databaseAcres(outline.geometry);
     if (outline.properties.source === "sample") {
       const field = fields.find((f) => f.id === outline.id);
       if (!field) throw new Error(`Outline ${outline.id} is marked sample but is not a field in farm.geojson.`);
@@ -53,7 +54,11 @@ export function previewLabels({ outlines, fields }: Pick<PreviewInput, "outlines
         source: outline.properties.source,
         at: at as LonLat,
         title: field.name,
-        detail: `${twoPlaces(field.expected_acres)} ac in the database (${twoPlaces(measured)} measured here)`,
+        // The same measure the database uses, so this is what it will store.
+        detail:
+          measured === field.expected_acres
+            ? `${twoPlaces(measured)} ac`
+            : `${twoPlaces(measured)} ac, but farm.geojson expects ${twoPlaces(field.expected_acres)}`,
       };
     }
     return {
@@ -123,12 +128,12 @@ export function renderPreview(input: PreviewInput): string {
 <div id="map"></div>
 <div id="panel">
   <h1>Outlines near Dave's Farm (SAMPLE)</h1>
-  <p>Every outline in <code>sample-data/nearby-outlines.geojson</code>, over Esri World Imagery.</p>
+  <p>Every outline in <code>sample-data/nearby-outlines.geojson</code>, over Esri World Imagery. Acres are measured the way the database measures them.</p>
   <ul>
-    <li><span class="swatch sample"></span>Dave's made-up fields (${counts.sample}), from <code>farm.geojson</code></li>
-    <li><span class="swatch csb"></span>Neighbors (${counts.csb}): real outlines from USDA Crop Sequence Boundaries</li>
-    <li><span class="swatch bin"></span>Bins 3 and 4 (the farmstead), from <code>farm.json</code></li>
-    <li><span class="swatch other"></span>Other real outlines in the clip, not in the file</li>
+    <li><span class="swatch sample"></span><span>Dave's fields (${counts.sample}), from <code>farm.geojson</code>: a made-up farm, cut from real outlines</span></li>
+    <li><span class="swatch csb"></span><span>Neighbors (${counts.csb}): real outlines from USDA Crop Sequence Boundaries</span></li>
+    <li><span class="swatch bin"></span><span>Bins 3 and 4 (the farmstead), from <code>farm.json</code></span></li>
+    <li><span class="swatch other"></span><span>Other real outlines in the clip, not in the file</span></li>
   </ul>
   <label><input type="checkbox" id="others"> Show the other real outlines</label>
   <p id="status"></p>
@@ -149,7 +154,8 @@ export function renderPreview(input: PreviewInput): string {
         },
         layers: [{ id: "imagery", type: "raster", source: "imagery" }],
       },
-      center: [-93.407, 42.09],
+      // Only until the outlines load; the map then fits itself to them.
+      center: data.labels[0].at,
       zoom: 14,
     });
     map.addControl(new maplibregl.NavigationControl(), "top-right");

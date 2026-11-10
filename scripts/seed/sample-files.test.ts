@@ -1,7 +1,8 @@
 import {
   area,
-  booleanDisjoint,
   booleanPointInPolygon,
+  featureCollection,
+  intersect,
   point,
   pointToPolygonDistance,
   polygon,
@@ -102,8 +103,9 @@ describe("map layout", () => {
     for (const b of files.farm.buyers) expect(insideBox(b.location)).toBe(true);
   });
 
-  it("keeps the fields from overlapping", () => {
-    expect(booleanDisjoint(outline("North 80"), outline("South 40"))).toBe(true);
+  it("keeps the fields from overlapping: they share a fence line and no ground", () => {
+    const shared = intersect(featureCollection([outline("North 80"), outline("South 40")]));
+    expect(shared ? area(shared) : 0).toBeLessThan(1);
   });
 
   it("keeps the bins outside both fields, at least 50 m from either outline", () => {
