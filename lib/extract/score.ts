@@ -40,10 +40,15 @@ const wording = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}]/gu
  * - A value the ticket doesn't have must be read as null.
  */
 export function valuesMatch(field: TicketField, read: TicketValue, expected: TicketValue): boolean {
+  return sameValue(read, expected, WORDING_FIELDS.has(field));
+}
+
+/** The comparison behind `valuesMatch`, for any document. `isWording` marks a name or address. */
+export function sameValue(read: TicketValue, expected: TicketValue, isWording: boolean): boolean {
   if (read === null || expected === null) return read === expected;
   if (typeof read === "number" && typeof expected === "number") return Math.abs(read - expected) < 1e-9;
   if (typeof read === "string" && typeof expected === "string") {
-    if (WORDING_FIELDS.has(field)) return wording(read) === wording(expected);
+    if (isWording) return wording(read) === wording(expected);
     return read.trim().toLowerCase() === expected.trim().toLowerCase();
   }
   return read === expected;

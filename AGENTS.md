@@ -27,7 +27,7 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 - `components/shell/`: the frame around every screen (top bar, icon rail, role switcher). `components/home/`: the farmer's and agent's home screens. `components/tickets/`: the Add ticket screen. `components/ui/`: shadcn/ui components.
 - `lib/role/`: the two roles. `getCurrentRole()` in `current-role.ts` reads the current role on the server.
 - `lib/rules/`: calculations, matching rules and flags. Pure functions only: plain data in, results out, no database or framework calls. Every function has Vitest tests next to it.
-- `lib/extract/`: document reading, one schema per document type
+- `lib/extract/`: document reading, one schema per document type. `read.ts` holds the one Claude API call that every reader uses.
 - `lib/db/`: database queries. `client.ts` holds the one server-only Supabase client.
 - `lib/photos/`: a photo file's type, SHA-256 hash, and EXIF time and GPS
 - `lib/tickets/`: adding a ticket, start to finish (`add-ticket.ts`). The reader and the database are passed in, so its tests never call Claude or Supabase.
@@ -40,6 +40,7 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
   - `reference/`: real blank forms, for layout only. Never copy a real company's name or design.
 - `scripts/print/`: `npm run print-docs`, which turns `documents-2026.json` into the PDFs.
 - `scripts/read-tickets/`: `npm run read-ticket -- <photo>`, which reads one ticket photo and prints its values and checks, and `npm run score-tickets`, which reads every sample ticket photo and scores each model against `documents-2026.json`. Both call the Claude API (server-side, uses `ANTHROPIC_API_KEY`) and cost money.
+- `scripts/read-documents/`: `npm run read-document -- <file>`, which reads one FSA-578 or Summary of Coverage (a photo or a PDF) and prints its values and checks, and `npm run score-documents`, which reads the sample FSA-578 photo and Summary of Coverage PDF and scores each model against `documents-2026.json`. Both call the Claude API and cost money.
 - `scripts/seed/`: `npm run seed`, which resets and loads the sample farm in stages (server-side, uses `SUPABASE_SECRET_KEY`). New demo stages go at the end of `STAGES` in `stages.ts`.
 - `docs/decisions/`: one-page decision record per stack choice (what we picked, the main alternative, why)
 
