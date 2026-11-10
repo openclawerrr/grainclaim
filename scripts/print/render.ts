@@ -8,6 +8,10 @@
  *   Elevator. Its Wisconsin legal text is replaced with SAMPLE notes and terms.
  * - The FSA-578 follows page 1 of the real blank form, with a large
  *   "not an official USDA form" banner.
+ * - The FSA map follows the parts of a real FSA aerial map (header, photo with
+ *   numbered field outlines, legend, footer), with a large "not an official
+ *   USDA map" banner and no USDA logo. Its outlines are drawn from
+ *   farm.geojson onto the aerial photo, never from the document's values.
  * - The Summary of Coverage and settlement are our own layouts (no public
  *   sample exists), with a fictional insurer and the fictional elevator.
  *
@@ -15,14 +19,19 @@
  * diagonal SAMPLE watermark, kept light so it doesn't spoil reading tests.
  */
 import { createHash } from "node:crypto";
+import { centerOfMass, featureCollection, union } from "@turf/turf";
+import type { Feature, Polygon } from "geojson";
+import { groundSize, type Bbox } from "../outlines/map-area";
 import type {
   Fsa578Doc,
+  FsaMapDoc,
   SampleDocument,
   SettlementDoc,
   SummaryOfCoverageDoc,
   TicketDoc,
   TicketValues,
 } from "./documents-file";
+import type { MapInputs } from "./map-inputs";
 
 export interface RenderedDocument {
   name: string;
@@ -121,10 +130,14 @@ ${body}
   return { name, title, hash, html };
 }
 
-export function renderDocument(name: string, doc: SampleDocument): RenderedDocument {
+/** `map` is the aerial photo and field outlines, which only the FSA map needs. */
+export function renderDocument(name: string, doc: SampleDocument, map?: MapInputs): RenderedDocument {
   switch (doc.kind) {
     case "scale_ticket":
       return renderTicket(name, doc);
+    case "fsa_map":
+      if (!map) throw new Error(`${name} is an FSA map, so it needs the aerial photo and the field outlines.`);
+      return renderFsaMap(name, doc, map);
     case "fsa_578":
       return renderFsa578(name, doc);
     case "summary_of_coverage":
@@ -650,4 +663,246 @@ function renderSettlement(name: string, doc: SettlementDoc): RenderedDocument {
 </div>`;
 
   return page(name, PORTRAIT, DOC_CSS, body, `${v.buyer_name} SAMPLE settlement (GrainClaim demo)`);
+}
+
+// ---------------------------------------------------------------------------
+// FSA map
+// ---------------------------------------------------------------------------
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
+  "November", "December"];
+
+/** 2026-04-14 → April 14, 2026 */
+export function longDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${MONTHS[m - 1]} ${d}, ${y}`;
+}
+
+/** The map's height in drawing units. Its width follows from the shape of the ground the photo covers. */
+const MAP_UNITS_HIGH = 1000;
+/** The map's printed width. */
+const MAP_WIDTH_IN = 7.4;
+const FEET_PER_METER = 1 / 0.3048;
+
+/**
+ * Where a longitude and latitude fall on a drawing that covers `bbox`: x runs
+ * east from the left edge and y runs south from the top. Over a mile or so the
+ * ground is flat enough that this straight-line placement is exact to the width
+ * of the drawn line.
+ */
+export function projector([west, south, east, north]: Bbox, width: number, height: number) {
+  return ([lon, lat]: readonly number[]): [number, number] => [
+    ((lon - west) / (east - west)) * width,
+    ((north - lat) / (north - south)) * height,
+  ];
+}
+
+/** The longest round number of feet that fits in about a fifth of the map's width. */
+export function scaleBarFeet(mapWidthFeet: number): number {
+  const lengths = [50, 100, 200, 500, 1000, 2000, 5000, 10000];
+  return lengths.filter((feet) => feet <= mapWidthFeet * 0.22).at(-1) ?? lengths[0];
+}
+
+const one = (n: number) => (Math.round(n * 10) / 10).toString();
+const HEL_NAMES: Record<FsaMapDoc["values"]["tracts"][number]["fields"][number]["hel"], string> = {
+  HEL: "highly erodible land",
+  NHEL: "not highly erodible land",
+  UHEL: "erodibility not yet determined",
+};
+
+const MAP_CSS = `
+.sample-top { margin-bottom: 2pt; }
+.map-head { display: grid; grid-template-columns: 1.2fr 1.5fr 1.2fr; align-items: center; border: 1px solid #111;
+  padding: 3pt 7pt; }
+.agency { font-size: 9pt; line-height: 1.3; }
+.agency b { font-size: 10pt; }
+.farm { text-align: center; }
+.farm .t { font-size: 15pt; font-weight: 700; letter-spacing: 0.04em; }
+.banner { display: inline-block; margin-top: 2pt; border: 2px solid #b11; color: #b11; font-weight: 700;
+  font-size: 11.5pt; padding: 1.5pt 8pt; letter-spacing: 0.02em; white-space: nowrap; }
+.year { text-align: right; font-size: 9pt; line-height: 1.35; }
+.year b { font-size: 11pt; }
+.tracts { display: flex; gap: 22pt; border: 1px solid #111; border-top: 0; padding: 2.5pt 7pt; font-size: 9.5pt; }
+.tracts b { font-size: 10pt; }
+.map-row { display: grid; grid-template-columns: ${MAP_WIDTH_IN}in 1fr; gap: 9pt; margin-top: 5pt; }
+.map-row svg.map { display: block; width: ${MAP_WIDTH_IN}in; height: auto; }
+.side { font-size: 8.5pt; line-height: 1.35; display: flex; flex-direction: column; gap: 8pt; }
+.side h3 { margin: 0 0 3pt; font-size: 9.5pt; text-transform: uppercase; letter-spacing: 0.05em;
+  border-bottom: 1px solid #111; padding-bottom: 1.5pt; }
+.key { display: flex; align-items: center; gap: 6pt; margin: 2.5pt 0; }
+.key svg { flex: none; width: 34pt; height: 17pt; }
+.key.group { font-weight: 700; margin-top: 1pt; }
+.key.sub { padding-left: 8pt; }
+.label-key { display: grid; grid-template-columns: auto 1fr; column-gap: 6pt; row-gap: 1pt; align-items: baseline; }
+.label-key .typed { font-size: 9.5pt; text-align: center; }
+.side .sample-note { border: 1px solid #b11; color: #b11; padding: 3pt 5pt; font-size: 8pt; }
+.map-foot { margin-top: 4pt; font-size: 7.3pt; line-height: 1.3; }
+.map-foot p { margin: 0 0 1.5pt; }
+svg.map text { font-family: Arial, Helvetica, sans-serif; font-weight: 700; text-anchor: middle;
+  paint-order: stroke; stroke: #000; stroke-linejoin: round; }
+svg.map .clu { fill: none; stroke: #fff; stroke-width: 3; stroke-linejoin: round; }
+svg.map .clu.non-cropland { fill: url(#hatch); }
+svg.map .tract { fill: none; stroke: #ffe100; stroke-width: 11; stroke-linejoin: round; }
+svg.map .field-label { fill: #fff; stroke-width: 6; font-size: 30px; }
+svg.map .field-label .number { font-size: 36px; }
+svg.map .tract-label { fill: #ffe100; stroke-width: 6; font-size: 27px; }
+svg.map .plss { fill: #9fe8ff; stroke-width: 5; font-size: 24px; font-style: italic; text-anchor: start; }
+svg.map .panel { fill: rgba(255, 255, 255, 0.9); stroke: #111; stroke-width: 1.5; }
+svg.map .panel-text { fill: #111; stroke: none; font-size: 20px; font-weight: 400; }
+svg.map .panel-text.n { font-size: 30px; font-weight: 700; }
+`;
+
+type MapField = MapInputs["fields"][number];
+const asFeature = (field: MapField): Feature<Polygon> => ({ type: "Feature", properties: {}, geometry: field.geometry });
+
+/** The outer rings of the ground a tract's fields cover together. */
+function tractRings(fields: readonly MapField[]): number[][][] {
+  if (fields.length === 1) return [fields[0].geometry.coordinates[0]];
+  const merged = union(featureCollection(fields.map(asFeature)));
+  if (!merged) return [];
+  return merged.geometry.type === "Polygon"
+    ? [merged.geometry.coordinates[0]]
+    : merged.geometry.coordinates.map((polygon) => polygon[0]);
+}
+
+function renderFsaMap(name: string, doc: FsaMapDoc, map: MapInputs): RenderedDocument {
+  const v = doc.values;
+  const ground = groundSize(map.image.bbox);
+  const [width, height] = [(MAP_UNITS_HIGH * ground.width) / ground.height, MAP_UNITS_HIGH];
+  const place = projector(map.image.bbox, width, height);
+  const path = (ring: readonly (readonly number[])[]) =>
+    `M${ring.slice(0, -1).map((point) => place(point).map(one).join(",")).join(" L")} Z`;
+  const outlineOf = (tract: string, field: string): MapField => {
+    const found = map.fields.find(
+      ({ properties: p }) => p.fsa_farm === v.farm_number && p.fsa_tract === tract && p.fsa_field === field,
+    );
+    if (!found) throw new Error(`${name}: farm ${v.farm_number} tract ${tract} field ${field} has no outline in farm.geojson.`);
+    return found;
+  };
+
+  const tracts = v.tracts.map((tract) => ({
+    ...tract,
+    fields: tract.fields.map((field) => ({ ...field, outline: outlineOf(tract.tract, field.field) })),
+  }));
+
+  const tractPaths = tracts
+    .flatMap((tract) => tractRings(tract.fields.map((f) => f.outline)))
+    .map((ring) => `<path class="tract" d="${path(ring)}"/>`)
+    .join("\n    ");
+  const fieldPaths = tracts
+    .flatMap((tract) => tract.fields)
+    .map((f) => `<path class="clu${f.land_use === "cropland" ? "" : " non-cropland"}" d="${path(f.outline.geometry.coordinates[0])}"/>`)
+    .join("\n    ");
+
+  // Each field's label sits at the middle of its ground: field number, acres, erodibility.
+  const fieldLabels = tracts
+    .flatMap((tract) => tract.fields)
+    .map((f) => {
+      const [x, y] = place(centerOfMass(asFeature(f.outline)).geometry.coordinates).map(one);
+      return `<text class="field-label" x="${x}" y="${y}">
+      <tspan class="number" x="${x}" dy="-22">${esc(f.field)}</tspan>
+      <tspan x="${x}" dy="34">${fixed(f.acres, 2)}</tspan>
+      <tspan x="${x}" dy="32">${esc(f.hel)}</tspan>
+    </text>`;
+    })
+    .join("\n    ");
+
+  // Each tract's number sits just inside the top of its ground.
+  const tractLabels = tracts
+    .map((tract) => {
+      const points = tract.fields.flatMap((f) => f.outline.geometry.coordinates[0]).map(place);
+      const xs = points.map(([x]) => x);
+      const top = Math.min(...points.map(([, y]) => y));
+      return `<text class="tract-label" x="${one((Math.min(...xs) + Math.max(...xs)) / 2)}" y="${one(top + 62)}">Tract ${esc(tract.tract)}</text>`;
+    })
+    .join("\n    ");
+
+  // The north arrow and scale bar share a panel in the corner of the map farthest from the fields' labels.
+  const feetPerUnit = (ground.width / width) * FEET_PER_METER;
+  const barFeet = scaleBarFeet(ground.width * FEET_PER_METER);
+  const barUnits = barFeet / feetPerUnit;
+  const panel = { width: barUnits + 150, height: 96 };
+  const [panelX, panelY] = [width - panel.width - 14, height - panel.height - 14];
+  const barX = panelX + 92;
+  const barY = panelY + 54;
+  const quarter = barUnits / 4;
+  const scalePanel = `<g>
+      <rect class="panel" x="${one(panelX)}" y="${one(panelY)}" width="${one(panel.width)}" height="${panel.height}" rx="4"/>
+      <path d="M${one(panelX + 40)},${one(panelY + 84)} l-15,0 l15,-44 l15,44 Z" fill="#111"/>
+      <text class="panel-text n" x="${one(panelX + 40)}" y="${one(panelY + 34)}">N</text>
+      ${[0, 1, 2, 3]
+        .map(
+          (i) =>
+            `<rect x="${one(barX + i * quarter)}" y="${one(barY)}" width="${one(quarter)}" height="12" fill="${i % 2 === 0 ? "#111" : "#fff"}" stroke="#111" stroke-width="1.5"/>`,
+        )
+        .join("\n      ")}
+      <text class="panel-text" x="${one(barX)}" y="${one(barY - 8)}">0</text>
+      <text class="panel-text" x="${one(barX + barUnits / 2)}" y="${one(barY - 8)}">${whole(barFeet / 2)}</text>
+      <text class="panel-text" x="${one(barX + barUnits)}" y="${one(barY - 8)}">${whole(barFeet)}</text>
+      <text class="panel-text" x="${one(barX + barUnits / 2)}" y="${one(barY + 34)}">Feet</text>
+    </g>`;
+
+  const swatch = (inner: string) =>
+    `<svg viewBox="0 0 68 34" aria-hidden="true"><rect width="68" height="34" fill="#55793f"/>${inner}</svg>`;
+  const hatch = (id: string) =>
+    `<pattern id="${id}" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">` +
+    `<line x1="0" y1="0" x2="0" y2="9" stroke="#fff" stroke-width="2.4"/></pattern>`;
+  const helsShown = [...new Set(tracts.flatMap((tract) => tract.fields.map((f) => f.hel)))];
+  const example = tracts[0].fields[0];
+
+  const body = `
+<div class="map-head">
+  <div class="agency"><b>United States Department of Agriculture</b><br>Farm Service Agency<br>
+    ${esc(v.county)} County, ${esc(STATES[v.state] ?? v.state)}</div>
+  <div class="farm">
+    <div class="t">Farm ${esc(v.farm_number)}</div>
+    <div class="banner">SAMPLE: NOT AN OFFICIAL USDA MAP</div>
+  </div>
+  <div class="year"><b>${v.program_year} Program Year</b><br>Map Created ${esc(longDate(v.map_created_date))}</div>
+</div>
+<div class="tracts">
+  ${tracts.map((t) => `<span><b>Tract ${esc(t.tract)}</b> &nbsp;Cropland Total: ${fixed(t.cropland_acres, 2)} acres</span>`).join("\n  ")}
+</div>
+<div class="map-row">
+  <svg class="map" viewBox="0 0 ${one(width)} ${height}" xmlns="http://www.w3.org/2000/svg" role="img"
+    aria-label="Aerial photo of farm ${esc(v.farm_number)} with its fields outlined">
+    <defs>${hatch("hatch")}</defs>
+    <image href="${map.image.dataUri}" x="0" y="0" width="${one(width)}" height="${height}" preserveAspectRatio="none"/>
+    ${tractPaths}
+    ${fieldPaths}
+    ${tractLabels}
+    ${fieldLabels}
+    <text class="plss" x="18" y="38">${esc(v.plss_label)}</text>
+    ${scalePanel}
+    <rect x="0.75" y="0.75" width="${one(width - 1.5)}" height="${one(height - 1.5)}" fill="none" stroke="#111" stroke-width="1.5"/>
+  </svg>
+  <div class="side">
+    <div>
+      <h3>Legend</h3>
+      <div class="key group">Common Land Unit</div>
+      <div class="key sub">${swatch(`<rect x="9" y="7" width="50" height="20" fill="none" stroke="#fff" stroke-width="3"/>`)}Cropland</div>
+      <div class="key sub">${swatch(`<defs>${hatch("hatch-key")}</defs><rect x="9" y="7" width="50" height="20" fill="url(#hatch-key)" stroke="#fff" stroke-width="3"/>`)}Non-Cropland</div>
+      <div class="key">${swatch(`<line x1="6" y1="17" x2="62" y2="17" stroke="#ffe100" stroke-width="8"/>`)}Tract Boundary</div>
+      <div class="key">${swatch(`<text x="34" y="23" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="15" font-style="italic" font-weight="700" fill="#9fe8ff" stroke="#000" stroke-width="3" paint-order="stroke">S-T-R</text>`)}PLSS (section, township, range)</div>
+    </div>
+    <div>
+      <h3>Field labels</h3>
+      <div class="label-key">
+        <span class="typed">${esc(example.field)}</span><span>Field number</span>
+        <span class="typed">${fixed(example.acres, 2)}</span><span>Acres</span>
+        ${helsShown.map((hel) => `<span class="typed">${esc(hel)}</span><span>${esc(capitalize(HEL_NAMES[hel]))}</span>`).join("\n        ")}
+      </div>
+    </div>
+    <div class="sample-note"><b>SAMPLE.</b> Farm ${esc(v.farm_number)} is a made-up farm for the GrainClaim demo. Its field outlines are cut
+      from public crop-field outlines and say nothing about who farms this land.</div>
+  </div>
+</div>
+<div class="map-foot">
+  <p><b>Unless otherwise noted:</b> shares are 100% operator, crops are non-irrigated, corn is yellow for grain.</p>
+  <p>SAMPLE, modeled on the notice a real FSA map carries: FSA maps are for FSA program administration only. This map is not a
+    legal survey and does not show ownership; it shows what the producer reported, drawn on aerial imagery.</p>
+  <p>Imagery: ${esc(v.imagery_credit)}, USDA National Agriculture Imagery Program (public domain).</p>
+</div>`;
+
+  return page(name, LANDSCAPE, MAP_CSS, body, "FSA farm map SAMPLE for the GrainClaim demo. Not an official USDA map.");
 }

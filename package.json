@@ -12,6 +12,7 @@
     "print-docs": "tsx scripts/print/index.ts",
     "place-fields": "tsx scripts/outlines/place-fields.ts",
     "build-outlines": "tsx scripts/outlines/index.ts",
+    "fetch-naip": "tsx scripts/outlines/fetch-naip.ts",
     "read-ticket": "tsx scripts/read-tickets/index.ts read",
     "score-tickets": "tsx scripts/read-tickets/index.ts score",
     "read-document": "tsx scripts/read-documents/index.ts read",

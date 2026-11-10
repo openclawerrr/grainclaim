@@ -13,6 +13,7 @@ import { elevatorDryBushels, netWeightLb, wetBushels } from "../../lib/rules/tic
 import { guaranteeBushels } from "../../lib/rules/unit";
 import type { SampleFiles } from "../seed/sample-files";
 import { documentsOfKind, type DocumentsFile, type TicketDoc } from "./documents-file";
+import type { MapImage } from "./map-inputs";
 
 /** Rounds to `places` decimals the way the documents print (half away from zero for our positive values). */
 export function round(value: number, places: number): number {
@@ -26,12 +27,21 @@ const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 4 
 
 const NAME_PATTERNS: Record<DocumentsFile["documents"][string]["kind"], RegExp> = {
   scale_ticket: /^ticket-\d+$/,
+  fsa_map: /^fsa-map(-\d+)?$/,
   fsa_578: /^fsa-578(-\d+)?$/,
   summary_of_coverage: /^summary-of-coverage(-\d+)?$/,
   settlement: /^settlement(-\d+)?$/,
 };
 
-export function findDocumentProblems(file: DocumentsFile, sample: SampleFiles): string[] {
+/**
+ * `image` is the aerial photo the FSA map is printed on. Leave it out to
+ * check the documents' values alone, without the photo.
+ */
+export function findDocumentProblems(
+  file: DocumentsFile,
+  sample: SampleFiles,
+  image?: Pick<MapImage, "bbox" | "year">,
+): string[] {
   const problems: string[] = [];
   const { farm, fields, season } = sample;
   const policy = season.policy;
@@ -98,6 +108,68 @@ export function findDocumentProblems(file: DocumentsFile, sample: SampleFiles): 
     ];
     for (const [label, printed, expected] of totals) {
       if (differs(printed, expected)) say(`${label} is ${fmt(printed)} but should be ${fmt(expected)}.`);
+    }
+  }
+
+  for (const [name, { values: v }] of documentsOfKind(file, "fsa_map")) {
+    const say = (msg: string) => problems.push(`${name}: ${msg}`);
+    if (v.program_year !== policy.crop_year) say(`program year ${v.program_year} is not ${policy.crop_year}.`);
+    if (!v.map_created_date.startsWith(`${v.program_year}-`)) {
+      say(`the map was created on ${v.map_created_date}, outside program year ${v.program_year}.`);
+    }
+
+    const tractNumbers = v.tracts.map((t) => t.tract);
+    for (const n of new Set(tractNumbers.filter((x, i) => tractNumbers.indexOf(x) !== i))) say(`tract ${n} is listed twice.`);
+
+    for (const tract of v.tracts) {
+      const fieldNumbers = tract.fields.map((f) => f.field);
+      for (const n of new Set(fieldNumbers.filter((x, i) => fieldNumbers.indexOf(x) !== i))) {
+        say(`tract ${tract.tract} field ${n} is listed twice.`);
+      }
+      for (const line of tract.fields) {
+        const label = `tract ${tract.tract} field ${line.field}`;
+        const mapped = fields.find(
+          ({ properties: p }) => p.fsa_farm === v.farm_number && p.fsa_tract === tract.tract && p.fsa_field === line.field,
+        );
+        if (!mapped) {
+          say(`${label} is not a field in farm.geojson.`);
+          continue;
+        }
+        const { name: fieldName, expected_acres: acres, state, county } = mapped.properties;
+        if (differs(line.acres, acres)) say(`${fieldName} shows ${line.acres} acres but farm.geojson expects ${acres}.`);
+        if (state !== v.state || county !== v.county) {
+          say(`${fieldName} is in ${county} County, ${state}, but the map says ${v.county} County, ${v.state}.`);
+        }
+        if (image) {
+          const [west, south, east, north] = image.bbox;
+          const offThePhoto = mapped.geometry.coordinates[0].some(
+            ([lon, lat]) => lon < west || lon > east || lat < south || lat > north,
+          );
+          if (offThePhoto) say(`${fieldName}'s outline runs off the aerial photo. Run npm run fetch-naip.`);
+        }
+      }
+      const cropland = round(sum(tract.fields.filter((f) => f.land_use === "cropland").map((f) => f.acres)), 2);
+      if (differs(tract.cropland_acres, cropland)) {
+        say(`tract ${tract.tract}'s cropland total is ${tract.cropland_acres} but its cropland fields add up to ${cropland}.`);
+      }
+    }
+
+    for (const { properties: p } of fields) {
+      const drawn = v.tracts.some(
+        (t) => v.farm_number === p.fsa_farm && t.tract === p.fsa_tract && t.fields.some((f) => f.field === p.fsa_field),
+      );
+      if (!drawn) say(`${p.name} is in farm.geojson but not on the map.`);
+    }
+
+    const allCropland = round(sum(v.tracts.map((t) => t.cropland_acres)), 2);
+    for (const [formName, { values: form }] of documentsOfKind(file, "fsa_578")) {
+      if (form.farm_number === v.farm_number && differs(form.cropland_acres, allCropland)) {
+        say(`the tracts' cropland adds up to ${allCropland} acres but ${formName} shows ${form.cropland_acres}.`);
+      }
+    }
+
+    if (image && v.imagery_credit !== `${image.year} NAIP imagery`) {
+      say(`the imagery credit is "${v.imagery_credit}" but the aerial photo is from ${image.year}.`);
     }
   }
 

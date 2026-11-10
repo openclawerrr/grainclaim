@@ -57,13 +57,23 @@ describe("parseArgs", () => {
 });
 
 describe("matchPhotos", () => {
-  it("pairs the committed photos with the six tickets, in order, and skips the FSA-578", () => {
+  it("pairs the committed photos with the six tickets, in order, and skips the FSA-578 and the FSA map", () => {
     const match = matchPhotos(readdirSync(path.resolve("sample-data", "photos")), documents);
     expect(match.problems).toEqual([]);
     expect(match.tickets.map((t) => t.photo)).toEqual(TICKET_PHOTOS);
     expect(match.tickets.map((t) => t.filledIn)).toEqual(["printed", "printed", "by_hand", "printed", "printed", "printed"]);
     expect(match.tickets[2].expected).toBe(documents.documents["ticket-3"].values);
-    expect(match.skipped).toEqual(["fsa-578.jpg"]);
+    // The FSA map's photo is added after its PDF is approved, so this holds with it and without it.
+    expect(match.skipped).toContain("fsa-578.jpg");
+    expect(match.skipped.filter((photo) => photo !== "fsa-578.jpg" && photo !== "fsa-map.jpg")).toEqual([]);
+  });
+
+  it("skips a photo of the FSA map, which has no reader yet, without reporting a problem", () => {
+    expect(documents.documents["fsa-map"].kind).toBe("fsa_map");
+    const match = matchPhotos([...TICKET_PHOTOS, "fsa-578.jpg", "fsa-map.jpg"], documents);
+    expect(match.problems).toEqual([]);
+    expect(match.skipped).toEqual(["fsa-578.jpg", "fsa-map.jpg"]);
+    expect(match.tickets.map((t) => t.photo)).toEqual(TICKET_PHOTOS);
   });
 
   it("reports a ticket with no photo and a photo with no document", () => {

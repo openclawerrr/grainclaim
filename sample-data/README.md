@@ -1,29 +1,43 @@
 # Sample data (SAMPLE: all made up)
 
-Everything in this folder is invented for the GrainClaim demo. Dave's Farm, its fields, bins, trucks, policy and Main Street Elevator are not real. The field outlines are made-up coordinates in rural Story County, Iowa.
+Everything in this folder is invented for the GrainClaim demo. Dave's Farm, its fields, bins, trucks, policy and Main Street Elevator are not real.
+
+The farm sits on real ground in rural Story County, Iowa, so its map lines up with the aerial photo: the two field outlines are cut from public crop-field outlines, and the bins stand on a real farmstead's bins. That says nothing about who owns or farms that land. The public data this uses is listed under "Public data in `reference/`".
 
 ## Files
 
 | File | What it holds | Loaded by stage |
 |---|---|---|
 | `farm.json` | The permanent farm layer without fields: the insured, Main Street Elevator, Bins 3 and 4, Trucks 1 and 2 | `farm-base` |
-| `farm.geojson` | North 80 and South 40 as field outlines with FSA numbers. Demo beat 1 imports this same file live | `fields` |
+| `farm.geojson` | North 80 and South 40 as field outlines with FSA numbers. Demo beat 1 imports this same file live. The outlines are written by `npm run place-fields` | `fields` |
 | `nearby-outlines.geojson` | The outlines GrainClaim chooses from when it reads a photo of Dave's FSA map: North 80 and South 40 with the same coordinates as `farm.geojson`, and six real neighboring fields. No outline has a name or FSA numbers; the map photo supplies those. Made by `npm run build-outlines` | Not loaded |
 | `season-2026.json` | The 2026 corn policy, Units 1 and 2, and a field season for each field | `season-2026` |
-| `documents-2026.json` | Every value on Dave's 2026 sample documents (6 scale tickets, the FSA-578, the Summary of Coverage, the settlement), keyed by document name. It's the answer key for the reading tests | Not loaded: the documents are read live in the demo |
+| `documents-2026.json` | Every value on Dave's 2026 sample documents (6 scale tickets, the FSA map, the FSA-578, the Summary of Coverage, the settlement), keyed by document name. It's the answer key for the reading tests | Not loaded: the documents are read live in the demo |
 | `print/` | The documents as one-page PDFs, made from `documents-2026.json` by `npm run print-docs`. How to print, fill in and photograph them: [`print/README.md`](print/README.md) | Not loaded |
-| `photos/` | Phone photos of the printed tickets and FSA-578, named after each document (`ticket-3.jpg`). Inputs for the reading tests | Not loaded |
-| `reference/` | Real blank forms (the Wisconsin SAMPLE scale ticket, the FSA-578), for layout only, and the public data the outlines are built from (see "Public data in `reference/`") | Not loaded |
+| `photos/` | Phone photos of the printed tickets and FSA-578, named after each document (`ticket-3.jpg`). Inputs for the reading tests. The FSA map's photo (`fsa-map.jpg`) is added once its PDF is approved | Not loaded |
+| `reference/` | Real blank forms (the Wisconsin SAMPLE scale ticket, the FSA-578), for layout only, and the public data the outlines and the FSA map are built from (see "Public data in `reference/`") | Not loaded |
 
 `season-2026.json` points to fields by name and to units by unit number, so it reads easily. The seed turns those into IDs.
 
-To change the outlines, edit `farm.geojson` or the rules in `scripts/outlines/outlines.ts` and run `npm run build-outlines`. Never edit `nearby-outlines.geojson` or the preview page by hand; `npx vitest run` fails when either is out of date.
+## Moving a field or changing the neighbors
+
+Each file here is made from the one before it, and `npx vitest run` fails when any of them is out of date. Never edit the made files by hand.
+
+| To change | Edit | Then run, in this order |
+|---|---|---|
+| Where a field sits | `PLACEMENTS` in `scripts/outlines/placement.ts`: the real field each outline is cut from | `npm run place-fields` (writes `farm.geojson`), then everything below |
+| Which neighbors are in the outlines file | The rules in `scripts/outlines/outlines.ts` | `npm run build-outlines` (writes `nearby-outlines.geojson` and the preview) |
+| The aerial photo under the FSA map | Nothing: it follows the fields | `npm run fetch-naip` (needs the internet), then `npm run print-docs` |
+
+Acres are always measured the way the database measures them (`scripts/outlines/acres.ts`), never with Turf, which reads about 0.15% low here. Moving a field changes what the seed loads into the shared database, so agree it with the team first and reseed afterwards.
 
 ## Public data in `reference/`
 
 | File | What it is |
 |---|---|
-| `csb-near-daves-farm.geojson` | USDA NASS Crop Sequence Boundaries, public domain. The 39 real crop-field outlines that touch the box around Dave's fields (longitude -93.425 to -93.390, latitude 42.080 to 42.100), clipped with DuckDB from the 2016–2023 national release on Source Cooperative (crops as of 2023). These are crop-field outlines, not FSA's field boundaries, and they say nothing about who farms the land |
+| `csb-near-daves-farm.geojson` | USDA NASS Crop Sequence Boundaries, public domain. The 39 real crop-field outlines that touch the box around Dave's fields (longitude -93.438 to -93.402, latitude 42.082 to 42.103), clipped with DuckDB from the 2016–2023 national release on Source Cooperative (crops as of 2023). Dave's two fields are cut from two of them and the neighbors are six of the rest. These are crop-field outlines, not FSA's field boundaries, and they say nothing about who farms the land |
+| `naip-daves-farm.jpg` | USDA National Agriculture Imagery Program (NAIP) aerial photo, public domain: the imagery FSA prints its own maps on. Flown August 30, 2023. It covers Dave's two fields plus a 150 m margin, and the FSA map is printed on it. Made by `npm run fetch-naip` |
+| `naip-daves-farm.json` | The photo's year, its flight strip, and exactly what ground it covers. The FSA map's outlines are placed on the photo from this. Made by `npm run fetch-naip` |
 | `outlines-preview.html` | Every outline in `nearby-outlines.geojson` over Esri World Imagery, to check by eye that the outlines sit on real fields. Open it with `open sample-data/reference/outlines-preview.html`; it needs the internet. Made by `npm run build-outlines` |
 
 To change a document, edit `documents-2026.json`, run `npm run print-docs`, then reprint and re-photograph it. Never edit the PDFs by hand; `npx vitest run` fails when one is out of date.
@@ -40,7 +54,7 @@ There's no `is_sample` column, so the markers are:
 
 Bins, trucks, units and field seasons have no free-text column for a marker without renaming "Bin 3" or "Truck 1". They count as SAMPLE because they belong to the SAMPLE insured.
 
-Every sample document says "SAMPLE ONLY" at the top and bottom and carries a faint SAMPLE watermark. The FSA-578 also has a large "SAMPLE: NOT AN OFFICIAL USDA FORM" banner.
+Every sample document says "SAMPLE ONLY" at the top and bottom and carries a faint SAMPLE watermark. The FSA-578 also has a large "SAMPLE: NOT AN OFFICIAL USDA FORM" banner, and the FSA map a large "SAMPLE: NOT AN OFFICIAL USDA MAP" banner.
 
 ## Loading it
 
@@ -60,11 +74,11 @@ Before demo beat 1, run `--through farm-base`. A live import of `farm.geojson` w
 
 | Item | Value |
 |---|---|
-| North 80 | FSA 1234 / 5678 / 3. A ½ × ¼ mile rectangle whose outline the database measures at exactly 80.20 acres |
-| South 40 | FSA 1234 / 6012 / 1 (a different tract: rented land). A ¼ × ¼ mile square across the road, 40.00 acres |
+| North 80 | FSA 1234 / 5678 / 3. A real 80.41-acre field with a road on its west side, shortened by about 29 m at its east end so the database measures its outline at exactly 80.20 acres |
+| South 40 | FSA 1234 / 6012 / 1 (a different tract: rented land). The north-west corner of the real 159-acre field directly south of North 80, sharing its fence line: about a quarter mile square, 40.00 acres |
 | Bin 3 | 36 ft diameter, 24 ft eave height, 19,633 bu capacity (calculated by the database) |
 | Bin 4 | 30 ft diameter, 20 ft eave height, 11,362 bu capacity |
-| Bins' location | Farmstead east of North 80, about 135 m from the nearest field edge |
+| Bins' location | On the two grain bins of a real farmstead across the road, about 390 m west of North 80 |
 | Truck 1 / Truck 2 | 1,000 bu / 900 bu, owned by the farm |
 | Main Street Elevator | In Nevada, IA, about 5 miles from the fields |
 | Policy | 2026 corn, IA / Story, RP, 75% coverage, 100% price election, approved yield 180, basic units, projected price $4.62 (the 2026 RMA price) |
@@ -72,6 +86,7 @@ Before demo beat 1, run `--through farm-base`. A live import of `farm.geojson` w
 | Unit 2 | South 40, crop share, Dave's share stored as 0.6667 (the column holds 4 decimals). Screens show guarantees rounded to whole bushels |
 | Field seasons | Corn, non-irrigated. Planted acres 80.20 and 40.00 (the FSA-578 numbers). Planting Apr 28 to May 2, 2026 |
 | Scale tickets | 6 North 80 loads to Main Street Elevator on Oct 12–13, 2026, each with a printed date and time: Truck 1 carries tickets 1, 3, 4 and 6, Truck 2 carries 2 and 5. About 5,720 wet bushels in all (5,535 elevator dry). Ticket 1 is the worked example in `lib/rules/ticket.test.ts`; ticket 3 is filled in by hand |
+| FSA map | Farm 1234, Story County, Iowa, program year 2026, made April 14, 2026. Tract 5678 holds field 3 (80.20 acres) and tract 6012 holds field 1 (40.00 acres); both are cropland and NHEL (not highly erodible). Printed on 2023 NAIP imagery, with a made-up PLSS label |
 | FSA-578 | North 80 at 80.20 acres (key 1, share 1.0000); South 40 at 40.00 acres (key 1 at 0.6667, key 2 Pat Landowner (SAMPLE) at 0.3333) |
 | Summary of Coverage | Sample Mutual Crop Insurance (fictional). Unit 1 at 80.00 acres, guarantee 10,800 bu; Unit 2 at 40.00 acres, 3,600 bu. Season setup uses the FSA-578's 80.20 acres, so Unit 1's guarantee becomes 10,827 bu |
 | Settlement | Main Street Elevator, contract SAMPLE-C-2611 at $4.18: 5 of the 6 tickets. Ticket 5 (No. 20941) is missing |

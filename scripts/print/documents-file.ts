@@ -69,6 +69,44 @@ const ticketDoc = z.object({
 export type TicketDoc = z.infer<typeof ticketDoc>;
 
 // ---------------------------------------------------------------------------
+// FSA map (the aerial photo of a farm with its fields outlined and numbered)
+// ---------------------------------------------------------------------------
+
+const fsaMapField = z.object({
+  field: z.string().min(1),
+  /** The acres printed in the field's label. */
+  acres: decimals(2).pipe(z.number().positive()),
+  /** Highly erodible land status, as printed in the label: NHEL is "not highly erodible", UHEL "undetermined". */
+  hel: z.enum(["HEL", "NHEL", "UHEL"]),
+  land_use: z.enum(["cropland", "non_cropland"]),
+});
+
+const fsaMapTract = z.object({
+  tract: z.string().min(1),
+  /** The tract's cropland total, as printed: its cropland fields added up. */
+  cropland_acres: decimals(2),
+  fields: z.array(fsaMapField).min(1),
+});
+
+const fsaMapDoc = z.object({
+  kind: z.literal("fsa_map"),
+  delivery: z.literal("photo"),
+  values: z.object({
+    program_year: z.number().int(),
+    farm_number: z.string().min(1),
+    state: z.string().length(2),
+    county: z.string().min(1),
+    map_created_date: isoDate,
+    tracts: z.array(fsaMapTract).min(1),
+    /** The section, township and range printed on the map. Made up. */
+    plss_label: markedSample,
+    /** The aerial photo's year and program, as the credit line starts. */
+    imagery_credit: z.string().regex(/^\d{4} NAIP imagery$/, 'write it like "2023 NAIP imagery"'),
+  }),
+});
+export type FsaMapDoc = z.infer<typeof fsaMapDoc>;
+
+// ---------------------------------------------------------------------------
 // FSA-578 (Report of Acreage)
 // ---------------------------------------------------------------------------
 
@@ -217,6 +255,7 @@ export type SettlementDoc = z.infer<typeof settlementDoc>;
 
 const sampleDocument = z.discriminatedUnion("kind", [
   ticketDoc,
+  fsaMapDoc,
   fsa578Doc,
   summaryOfCoverageDoc,
   settlementDoc,

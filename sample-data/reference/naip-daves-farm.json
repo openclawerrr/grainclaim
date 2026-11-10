@@ -1,0 +1,16 @@
+{
+  "note": "USDA National Agriculture Imagery Program (NAIP) aerial photo, public domain. The ground the sample FSA map is printed on. Made by npm run fetch-naip; don't edit it by hand.",
+  "source": "https://imagery.geoplatform.gov/iipp/rest/services/NAIP/NAIP_plus/ImageServer",
+  "year": 2023,
+  "tiles": [
+    "m_4209361_ne_15_030_20230830_20240104"
+  ],
+  "bbox": [
+    -93.429742,
+    42.08765,
+    -93.410763,
+    42.097747
+  ],
+  "width": 1600,
+  "height": 1143
+}
