@@ -145,7 +145,7 @@ npm run seed -- --help                  # all options
 ```
 
 - **It replaces the sample farm for everyone.** Post in the team chat before running it.
-- It also removes rows the app added to the sample farm during a demo: imported fields, trips, tickets on those trips, and flags.
+- It also removes rows the app added to the sample farm during a demo: imported fields, trips, tickets on those trips, second photos of those tickets, and flags. Photo files stay in Storage; each is named by its hash, so adding the same photo again stores nothing new.
 - `audit_event` is never cleared, so it grows with every run.
 - `sample-data/README.md` lists every made-up value and how to add a demo stage.
 

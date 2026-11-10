@@ -21,6 +21,7 @@ _Last updated: November 9, 2026._
 - [x] Sample documents: `npm run print-docs` and the PDFs in `sample-data/print/` (PR #6)
 - [ ] Sample photos in `sample-data/photos/`
 - [x] App shell and roles: the top bar, icon rail, Farmer / Agent switcher and a placeholder home screen for each role
+- [ ] Thin slice: built. Still to do on `main`: push its migration, then upload `ticket-1.jpg` and see the Unit 1 total move
 - [ ] Everything below
 
 ## Who owns what
@@ -54,6 +55,15 @@ _Last updated: November 9, 2026._
 ### 2. Thin slice: one load, start to finish
 
 Upload a ticket photo: it's hashed and stored, GPS and time are read, the ticket is read and checked, linked to North 80 through a hard-coded harvest log entry, its bushels calculated, and the row saved. Its migration also adds a ticket time column (time in, as printed), covered by the read-value lock. *Done when a sample photo adds a row to the Unit 1 total.* This proves the riskiest part early.
+
+Built, and waiting for its check on `main` (see Status). What it leaves for later milestones:
+
+- **Milestone 4 replaces `originOfLoad()`** in `lib/rules/load-origin.ts`, which returns North 80 for every ticket. Nothing else should need to change to link tickets by the harvest log.
+- **Milestone 4's migration makes a trip's truck and estimate optional.** Until then a ticket whose truck number or buyer isn't on the farm's records is not saved, and the screen says why.
+- **The result screen is read-only.** "Looks right" and flagging a value come with ticket review. A failed check is saved, counted and shown in yellow; no flag row is created yet.
+- **A second photo of the same ticket** (same buyer, number and date) is kept with `duplicate_of` set and no trip, so it isn't counted. No flag row is created for it yet either.
+- **The farm's time zone is one constant** (`lib/tickets/farm-time-zone.ts`, Central time), used to turn a ticket's printed time into the trip's time.
+- **Not built:** the second independent read, and the guarantee beside each unit's total (season setup, Milestone 3).
 
 ### 3. Beat 1: "Here's Dave's farm"
 
