@@ -8,13 +8,23 @@ Everything in this folder is invented for the GrainClaim demo. Dave's Farm, its 
 |---|---|---|
 | `farm.json` | The permanent farm layer without fields: the insured, Main Street Elevator, Bins 3 and 4, Trucks 1 and 2 | `farm-base` |
 | `farm.geojson` | North 80 and South 40 as field outlines with FSA numbers. Demo beat 1 imports this same file live | `fields` |
+| `nearby-outlines.geojson` | The outlines GrainClaim chooses from when it reads a photo of Dave's FSA map: North 80 and South 40 with the same coordinates as `farm.geojson`, and six real neighboring fields. No outline has a name or FSA numbers; the map photo supplies those. Made by `npm run build-outlines` | Not loaded |
 | `season-2026.json` | The 2026 corn policy, Units 1 and 2, and a field season for each field | `season-2026` |
 | `documents-2026.json` | Every value on Dave's 2026 sample documents (6 scale tickets, the FSA-578, the Summary of Coverage, the settlement), keyed by document name. It's the answer key for the reading tests | Not loaded: the documents are read live in the demo |
 | `print/` | The documents as one-page PDFs, made from `documents-2026.json` by `npm run print-docs`. How to print, fill in and photograph them: [`print/README.md`](print/README.md) | Not loaded |
 | `photos/` | Phone photos of the printed tickets and FSA-578, named after each document (`ticket-3.jpg`). Inputs for the reading tests | Not loaded |
-| `reference/` | Real blank forms (the Wisconsin SAMPLE scale ticket, the FSA-578), for layout only | Not loaded |
+| `reference/` | Real blank forms (the Wisconsin SAMPLE scale ticket, the FSA-578), for layout only, and the public data the outlines are built from (see "Public data in `reference/`") | Not loaded |
 
 `season-2026.json` points to fields by name and to units by unit number, so it reads easily. The seed turns those into IDs.
+
+To change the outlines, edit `farm.geojson` or the rules in `scripts/outlines/outlines.ts` and run `npm run build-outlines`. Never edit `nearby-outlines.geojson` or the preview page by hand; `npx vitest run` fails when either is out of date.
+
+## Public data in `reference/`
+
+| File | What it is |
+|---|---|
+| `csb-near-daves-farm.geojson` | USDA NASS Crop Sequence Boundaries, public domain. The 39 real crop-field outlines that touch the box around Dave's fields (longitude -93.425 to -93.390, latitude 42.080 to 42.100), clipped with DuckDB from the 2016–2023 national release on Source Cooperative (crops as of 2023). These are crop-field outlines, not FSA's field boundaries, and they say nothing about who farms the land |
+| `outlines-preview.html` | Every outline in `nearby-outlines.geojson` over Esri World Imagery, to check by eye that the outlines sit on real fields. Open it with `open sample-data/reference/outlines-preview.html`; it needs the internet. Made by `npm run build-outlines` |
 
 To change a document, edit `documents-2026.json`, run `npm run print-docs`, then reprint and re-photograph it. Never edit the PDFs by hand; `npx vitest run` fails when one is out of date.
 
