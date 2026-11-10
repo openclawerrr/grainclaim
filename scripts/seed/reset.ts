@@ -19,11 +19,18 @@
  * Because the IDs are fixed, a row that survives makes the next insert fail
  * on its primary key instead of creating a second sample farm.
  *
+ * A second photo of a ticket already on record has no trip. It is found
+ * through duplicate_of, which points at the first ticket, and deleted before
+ * the ticket it points to.
+ *
+ * Photo files are left in Storage. Each is named by its hash, so adding the
+ * same photo after a reset stores nothing new.
+ *
  * Gaps for later stages:
- * - A ticket with no trip yet (the late emailed ticket) has no link back to
- *   the farm. The tickets stage must also delete tickets by the SHA-256
- *   hashes of the photos in sample-data/, or the unique-hash rule will block
- *   re-seeding.
+ * - Any other ticket with no trip (the late emailed ticket, before it
+ *   matches its pickup) has no link back to the farm. The tickets stage must
+ *   also delete tickets by the SHA-256 hashes of the photos in sample-data/,
+ *   or the unique-hash rule will block re-seeding.
  * - A new table that hangs off the farm needs a line in collectSampleRows and
  *   a place in DELETE_ORDER.
  * - Tickets can be deleted today because the lock trigger covers updates
@@ -110,7 +117,8 @@ export async function collectSampleRows(
     await where("trip", "dest_bin_id", bin),
     await where("trip", "dest_buyer_id", buyer),
   );
-  const ticket = union(await where("ticket", "trip_id", trip));
+  const onTrips = await where("ticket", "trip_id", trip);
+  const ticket = union(onTrips, await where("ticket", "duplicate_of", onTrips));
   const flag = union(
     await where(
       "flag",
@@ -129,6 +137,13 @@ export async function resetSampleFarm(
 ): Promise<Record<SampleTable, number>> {
   const rows = await collectSampleRows(db, files);
   const removed = Object.fromEntries(DELETE_ORDER.map((t) => [t, 0])) as Record<SampleTable, number>;
+
+  // Second photos point at the first ticket, so they go before the tickets they point to.
+  for (const chunk of chunks(rows.ticket)) {
+    const { error, count } = await db.from("ticket").delete({ count: "exact" }).in("duplicate_of", chunk);
+    if (error) throw new Error(`Deleting second photos of tickets failed: ${error.message}`);
+    removed.ticket += count ?? 0;
+  }
 
   for (const table of DELETE_ORDER) {
     for (const chunk of chunks(rows[table])) {

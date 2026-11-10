@@ -1,0 +1,68 @@
+import { getDb } from "@/lib/db/client";
+import { loadSeasonTotals, type SeasonTotals as Totals } from "@/lib/db/season-totals";
+import { countOf, formatWholeBushels } from "@/lib/format";
+
+/**
+ * The big numbers on the farmer's home screen: each unit's production to
+ * count, added up from its tickets by following ticket → trip → field → unit.
+ * Read from the database on every visit; nothing is cached or counted apart.
+ */
+export async function SeasonTotals() {
+  let season: Totals | null;
+  try {
+    season = await loadSeasonTotals(getDb());
+  } catch (error) {
+    console.error("Loading the season totals failed:", error instanceof Error ? error.message : error);
+    return <p className="col-span-3 text-base text-ink">The season totals can&apos;t be loaded right now.</p>;
+  }
+  if (!season) {
+    return <p className="col-span-3 text-base text-ink-muted">Totals show here once this season is set up.</p>;
+  }
+
+  return (
+    <>
+      {season.units.map((unit) => (
+        <Total
+          key={unit.unitId}
+          figure={formatWholeBushels(unit.productionToCountBu)}
+          label={`Unit ${unit.unitNumber} bushels`}
+          details={[countOf(unit.tickets, "ticket"), `${formatWholeBushels(unit.elevatorDryBu)} elevator dry`]}
+        />
+      ))}
+      <Total figure={null} label="Loads today" />
+    </>
+  );
+}
+
+/** The same tiles with dashes, shown for the moment the totals are loading. */
+export function SeasonTotalsLoading() {
+  return (
+    <>
+      <Total figure={null} label="Unit 1 bushels" />
+      <Total figure={null} label="Unit 2 bushels" />
+      <Total figure={null} label="Loads today" />
+    </>
+  );
+}
+
+/** A big number with a small label. The number is a dash until there is one. */
+function Total({ figure, label, details = [] }: { figure: string | null; label: string; details?: string[] }) {
+  return (
+    <div>
+      <p className="font-heading text-4xl font-semibold tabular-nums text-ink">
+        {figure ?? (
+          <>
+            <span aria-hidden="true">—</span>
+            <span className="sr-only">Not available yet</span>
+          </>
+        )}
+      </p>
+      <p className="mt-1 text-sm font-medium text-ink">{label}</p>
+      {details.map((detail) => (
+        <p key={detail} className="text-sm text-ink-muted tabular-nums">
+          {detail}
+        </p>
+      ))}
+    </div>
+  );
+}

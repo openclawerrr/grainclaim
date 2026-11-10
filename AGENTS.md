@@ -16,7 +16,7 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 
 - Next.js (App Router) + TypeScript + Tailwind + shadcn/ui
 - Supabase Postgres with PostGIS. PostGIS lives in the `extensions` schema, so map types are written `extensions.geometry`.
-- Supabase Storage for photos, each file named by its SHA-256 hash
+- Supabase Storage for photos, in the private `photos` bucket, each file named by its SHA-256 hash and real extension (`tickets/<hash>.jpg`)
 - Claude API (`@anthropic-ai/sdk`) with structured outputs for reading tickets and forms; one zod schema per document type
 - MapLibre GL + Turf.js for the map; Terra Draw for adjusting proposed field outlines and drawing missing ones; exifr for GPS and time from photos
 - Vitest for tests
@@ -24,11 +24,14 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 ### Folder layout
 
 - `app/`: screens. `app/api/`: server routes.
-- `components/shell/`: the frame around every screen (top bar, icon rail, role switcher). `components/home/`: the farmer's and agent's home screens. `components/ui/`: shadcn/ui components.
+- `components/shell/`: the frame around every screen (top bar, icon rail, role switcher). `components/home/`: the farmer's and agent's home screens. `components/tickets/`: the Add ticket screen. `components/ui/`: shadcn/ui components.
 - `lib/role/`: the two roles. `getCurrentRole()` in `current-role.ts` reads the current role on the server.
 - `lib/rules/`: calculations, matching rules and flags. Pure functions only: plain data in, results out, no database or framework calls. Every function has Vitest tests next to it.
 - `lib/extract/`: document reading, one schema per document type
-- `lib/db/`: database queries
+- `lib/db/`: database queries. `client.ts` holds the one server-only Supabase client.
+- `lib/photos/`: a photo file's type, SHA-256 hash, and EXIF time and GPS
+- `lib/tickets/`: adding a ticket, start to finish (`add-ticket.ts`). The reader and the database are passed in, so its tests never call Claude or Supabase.
+- `lib/format.ts`: how numbers, dates and times are shown. Calculations never round; screens do.
 - `supabase/migrations/`: database structure changes
 - `sample-data/`: Dave's sample farm and documents. Everything in it is made up and marked SAMPLE. See `sample-data/README.md`.
   - `documents-2026.json`: every value on every sample document, and the answer key for reading tests. To change a document, edit this file, run `npm run print-docs`, then reprint and re-photograph it.
@@ -56,6 +59,8 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 - A read value's confidence comes from checks we can explain (gross − tare = net; net ÷ standard weight = bushels; date inside harvest) and a second independent read, not from the model rating itself.
 - The demo has no logins. A Farmer / Agent switcher changes the view. The current role is saved in each record's "who" field (`uploaded_by`, `created_by`, `resolved_by`), because the audit log can't tell who acted. Get the role with `getCurrentRole()` from `lib/role/current-role.ts` when saving; never take it from a request body or form field. It reads a cookie, so a component that awaits it must sit inside a `<Suspense>` boundary.
 - Colors and fonts come from `docs/design.md` and are set up as theme tokens in `app/globals.css`. Use the class names (`bg-page`, `text-ink`, `border-line`, `bg-green-700`, `font-heading`); never write a hex value in a screen.
+- A unit's total is added up by following ticket → trip → field → field season → unit (`lib/rules/unit-totals.ts`). Never keep a separate counter. A ticket with no trip counts nowhere.
+- "Which field or bin did this load come from?" is answered in one place, `originOfLoad()` in `lib/rules/load-origin.ts`. Until Milestone 4 it returns North 80.
 - Before opening a pull request, `npx vitest run`, `npm run lint` and `npm run build` must pass.
 
 ### How the farmer's records work

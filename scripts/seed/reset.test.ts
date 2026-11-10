@@ -11,11 +11,13 @@ type Tables = Record<string, Row[]>;
 /**
  * Just enough of the Supabase client for reset.ts, backed by arrays. Like the
  * real database, it refuses to delete a row another row still points to
- * (every *_id column except flag.record_id is a foreign key in the schema).
+ * (every *_id column except flag.record_id is a foreign key in the schema,
+ * and so is ticket.duplicate_of).
  */
 function fakeDb(start: Tables) {
   const tables: Tables = structuredClone(start);
-  const isForeignKey = (column: string) => column.endsWith("_id") && column !== "record_id";
+  const isForeignKey = (column: string) =>
+    (column.endsWith("_id") && column !== "record_id") || column === "duplicate_of";
 
   const db = {
     from(table: string) {
@@ -124,6 +126,28 @@ describe("resetSampleFarm", () => {
       unit: [],
       field_season: [],
     });
+  });
+
+  it("removes second photos of a ticket, which have no trip and are found through the first ticket", async () => {
+    const tables = seededTables();
+    const NORTH_80 = tables.field[0].id;
+    tables.trip = [{ id: "trip-1", truck_id: TRUCK_1, origin_field_id: NORTH_80, dest_buyer_id: ELEVATOR }];
+    tables.ticket = [
+      { id: "a-first-photo", trip_id: "trip-1", duplicate_of: null },
+      { id: "b-second-photo", trip_id: null, duplicate_of: "a-first-photo" },
+      { id: "c-third-photo", trip_id: null, duplicate_of: "a-first-photo" },
+      // Another farm's second photo must survive.
+      { id: "other-ticket", trip_id: null, duplicate_of: "other-original" },
+    ];
+    tables.flag = [{ id: "flag-second-photo", record_type: "ticket", record_id: "b-second-photo" }];
+
+    const { db, tables: after } = fakeDb(tables);
+    const removed = await resetSampleFarm(db, files);
+
+    expect(removed.ticket).toBe(3);
+    expect(removed.flag).toBe(1);
+    expect(after.ticket.map((t) => t.id)).toEqual(["other-ticket"]);
+    expect(after.trip).toEqual([]);
   });
 
   it("does nothing when there is no sample farm, so it can run on an empty database", async () => {
