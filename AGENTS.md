@@ -37,8 +37,10 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
   - `documents-2026.json`: every value on every sample document, and the answer key for reading tests. To change a document, edit this file, run `npm run print-docs`, then reprint and re-photograph it.
   - `print/`: PDFs made by `npm run print-docs`. Never edit them by hand.
   - `photos/`: phone photos of the printed documents, named after them (`ticket-3.jpg`). Inputs for reading tests.
-  - `reference/`: real blank forms, for layout only. Never copy a real company's name or design.
-- `scripts/print/`: `npm run print-docs`, which turns `documents-2026.json` into the PDFs.
+  - `reference/`: real blank forms, for layout only. Never copy a real company's name or design. Also the public data the map files are made from: the USDA Crop Sequence Boundaries clip and the NAIP aerial photo.
+  - `farm.geojson`'s outlines are cut from real fields in that clip (`npm run place-fields`). `nearby-outlines.geojson` holds those two outlines and six real neighbors, for pairing with a photo of the FSA map (`npm run build-outlines`). Never edit either by hand.
+- `scripts/print/`: `npm run print-docs`, which turns `documents-2026.json` into the PDFs. The FSA map is drawn from `farm.geojson` onto the NAIP aerial photo.
+- `scripts/outlines/`: the sample map files. `npm run place-fields` cuts Dave's fields from real outlines, `npm run build-outlines` picks the neighbors and makes the preview page, and `npm run fetch-naip` downloads the aerial photo. `acres.ts` measures acres the way the database does; use it, not Turf's `area`, wherever acres must match `mapped_acres`. No database, no Claude.
 - `scripts/read-tickets/`: `npm run read-ticket -- <photo>`, which reads one ticket photo and prints its values and checks, and `npm run score-tickets`, which reads every sample ticket photo and scores each model against `documents-2026.json`. Both call the Claude API (server-side, uses `ANTHROPIC_API_KEY`) and cost money.
 - `scripts/read-documents/`: `npm run read-document -- <file>`, which reads one FSA-578 or Summary of Coverage (a photo or a PDF) and prints its values and checks, and `npm run score-documents`, which reads the sample FSA-578 photo and Summary of Coverage PDF and scores each model against `documents-2026.json`. Both call the Claude API and cost money.
 - `scripts/seed/`: `npm run seed`, which resets and loads the sample farm in stages (server-side, uses `SUPABASE_SECRET_KEY`). New demo stages go at the end of `STAGES` in `stages.ts`.

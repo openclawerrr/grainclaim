@@ -4,7 +4,8 @@
  * computer (no browser download). See sample-data/print/README.md.
  *
  * It checks the documents first and prints nothing if a value is wrong, and
- * it refuses to write a PDF that comes out longer than one page.
+ * it refuses to write a PDF that comes out longer than one page. The FSA map
+ * is drawn on the aerial photo from npm run fetch-naip.
  */
 import { mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -12,6 +13,7 @@ import { chromium } from "playwright-core";
 import { loadSampleFiles } from "../seed/sample-files";
 import { findDocumentProblems } from "./checks";
 import { loadDocumentsFile } from "./documents-file";
+import { loadMapInputs } from "./map-inputs";
 import { countPdfPages, withFixedDates } from "./pdf";
 import { renderDocument } from "./render";
 
@@ -19,7 +21,9 @@ const OUT_DIR = path.resolve("sample-data", "print");
 
 async function main(): Promise<void> {
   const file = loadDocumentsFile();
-  const problems = findDocumentProblems(file, loadSampleFiles());
+  const sample = loadSampleFiles();
+  const map = loadMapInputs(sample.fields);
+  const problems = findDocumentProblems(file, sample, map.image);
   if (problems.length > 0) {
     console.error(`sample-data/documents-2026.json has problems, so nothing was printed:\n- ${problems.join("\n- ")}`);
     process.exitCode = 1;
@@ -37,7 +41,7 @@ async function main(): Promise<void> {
   try {
     const page = await browser.newPage();
     for (const [name, doc] of Object.entries(file.documents)) {
-      const rendered = renderDocument(name, doc);
+      const rendered = renderDocument(name, doc, map);
       await page.setContent(rendered.html, { waitUntil: "load" });
       const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
       const pages = countPdfPages(pdf);

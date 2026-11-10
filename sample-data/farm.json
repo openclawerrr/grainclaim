@@ -19,7 +19,7 @@
     {
       "id": "5eed0000-0000-4000-8000-000000000301",
       "name": "Bin 3",
-      "location": [-93.4006, 42.0911],
+      "location": [-93.43004, 42.09322],
       "diameter_ft": 36,
       "eave_height_ft": 24,
       "expected_capacity_bu": 19633
@@ -27,7 +27,7 @@
     {
       "id": "5eed0000-0000-4000-8000-000000000302",
       "name": "Bin 4",
-      "location": [-93.4003, 42.0911],
+      "location": [-93.43004, 42.09311],
       "diameter_ft": 30,
       "eave_height_ft": 20,
       "expected_capacity_bu": 11362

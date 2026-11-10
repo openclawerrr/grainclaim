@@ -1,6 +1,7 @@
 import { readdirSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { DOCUMENT_KINDS } from "../../lib/extract/document-kinds";
 import { fsa578Values, type Fsa578Read } from "../../lib/extract/fsa-578-schema";
 import { scoreValues, summarizeDocuments, type ScoredDocumentRead } from "../../lib/extract/score-document";
 import { checkFsa578 } from "../../lib/rules/fsa-578-checks";
@@ -96,6 +97,19 @@ describe("matchDocuments", () => {
       ["fsa-578", "fsa_578", "photos/fsa-578.jpg", 36],
       ["summary-of-coverage", "summary_of_coverage", "print/summary-of-coverage.pdf", 43],
     ]);
+  });
+
+  it("leaves out the FSA map, which has no reader yet, whether or not its photo is there", () => {
+    expect(documents.documents["fsa-map"]).toMatchObject({ kind: "fsa_map", delivery: "photo" });
+    expect(Object.keys(DOCUMENT_KINDS)).not.toContain("fsa_map");
+    expect(kindFromFileName("sample-data/photos/fsa-map.jpg")).toBeNull();
+    for (const photoFiles of [photos, [...photos.filter((f) => f !== "fsa-map.jpg"), "fsa-map.jpg"]]) {
+      const match = matchDocuments(photoFiles, prints, documents);
+      expect(match.problems).toEqual([]);
+      expect(match.documents.map((d) => d.name)).toEqual(["fsa-578", "summary-of-coverage"]);
+    }
+    // Without the photo it still isn't asked for.
+    expect(matchDocuments(["fsa-578.jpg"], ["summary-of-coverage.pdf"], documents).problems).toEqual([]);
   });
 
   it("reports a document with no file, and one with two photos", () => {

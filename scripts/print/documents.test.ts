@@ -4,13 +4,16 @@ import { guaranteeBushels } from "../../lib/rules/unit";
 import { loadSampleFiles } from "../seed/sample-files";
 import { findDocumentProblems, round } from "./checks";
 import { documentsFileSchema, documentsOfKind, loadDocumentsFile, type DocumentsFile } from "./documents-file";
+import { loadMapInputs } from "./map-inputs";
 
 const file = loadDocumentsFile();
 const sample = loadSampleFiles();
+const { image } = loadMapInputs(sample.fields);
 const copy = (): DocumentsFile => structuredClone(file);
 
 const tickets = documentsOfKind(file, "scale_ticket");
 const [[, fsa]] = documentsOfKind(file, "fsa_578");
+const [[, fsaMap]] = documentsOfKind(file, "fsa_map");
 const [[, soc]] = documentsOfKind(file, "summary_of_coverage");
 const [[, settlement]] = documentsOfKind(file, "settlement");
 const ticket = (name: string) => {
@@ -30,6 +33,10 @@ describe("documents-2026.json", () => {
     expect(findDocumentProblems(file, sample)).toEqual([]);
   });
 
+  it("passes them with the FSA map's aerial photo too", () => {
+    expect(findDocumentProblems(file, sample, image)).toEqual([]);
+  });
+
   it("keys every document by the name its PDF and photo use", () => {
     expect(Object.keys(file.documents)).toEqual([
       "ticket-1",
@@ -38,17 +45,19 @@ describe("documents-2026.json", () => {
       "ticket-4",
       "ticket-5",
       "ticket-6",
+      "fsa-map",
       "fsa-578",
       "summary-of-coverage",
       "settlement",
     ]);
   });
 
-  it("photographs the tickets and the FSA-578, and uploads the Summary of Coverage and settlement as PDFs", () => {
+  it("photographs the tickets, the FSA map and the FSA-578, and uploads the Summary of Coverage and settlement as PDFs", () => {
     const delivery = Object.fromEntries(Object.entries(file.documents).map(([n, d]) => [n, d.delivery]));
     expect(delivery).toMatchObject({
       "ticket-1": "photo",
       "ticket-6": "photo",
+      "fsa-map": "photo",
       "fsa-578": "photo",
       "summary-of-coverage": "pdf",
       settlement: "pdf",
@@ -142,7 +151,106 @@ describe("spec Part 9", () => {
   });
 });
 
+describe("the FSA map", () => {
+  it("shows farm 1234 in Story County, Iowa, for program year 2026", () => {
+    expect(fsaMap.values).toMatchObject({ farm_number: "1234", state: "IA", county: "Story", program_year: 2026 });
+    expect(fsaMap.values.plss_label).toMatch(/^SAMPLE: /);
+  });
+
+  it("shows each field in farm.geojson in its own tract, with the acres the database measures", () => {
+    const shown = fsaMap.values.tracts.flatMap((t) => t.fields.map((f) => [t.tract, f.field, f.acres, f.hel, f.land_use]));
+    expect(shown).toEqual([
+      ["5678", "3", 80.2, "NHEL", "cropland"],
+      ["6012", "1", 40, "NHEL", "cropland"],
+    ]);
+    expect(shown.map(([tract, fieldNumber, acres]) => [tract, fieldNumber, acres])).toEqual(
+      sample.fields.map(({ properties: p }) => [p.fsa_tract, p.fsa_field, p.expected_acres]),
+    );
+    expect(fsaMap.values.tracts.map((t) => t.cropland_acres)).toEqual([80.2, 40]);
+  });
+
+  it("agrees with the FSA-578: the same farm, fields and acres, and the same cropland in all", () => {
+    expect(fsaMap.values.farm_number).toBe(fsa.values.farm_number);
+    expect(fsaMap.values.tracts.flatMap((t) => t.fields.map((f) => [t.tract, f.field, f.acres]))).toEqual(
+      fsa.values.fields.map((line) => [line.tract, line.field, line.reported_acres]),
+    );
+    expect(round(fsaMap.values.tracts.reduce((total, t) => total + t.cropland_acres, 0), 2)).toBe(fsa.values.cropland_acres);
+    // The map is made before planting and the acreage report after it.
+    expect(fsaMap.values.map_created_date < fsa.values.fields[0].planting_date).toBe(true);
+  });
+
+  it("credits the year the aerial photo was flown", () => {
+    expect(fsaMap.values.imagery_credit).toBe(`${image.year} NAIP imagery`);
+  });
+});
+
 describe("findDocumentProblems catches", () => {
+  const withMap = (change: (values: typeof fsaMap.values) => void): DocumentsFile => {
+    const f = copy();
+    const map = f.documents["fsa-map"];
+    if (map.kind !== "fsa_map") throw new Error("not an FSA map");
+    change(map.values);
+    return f;
+  };
+
+  it("FSA map acres that differ from farm.geojson, and a tract total that doesn't add up", () => {
+    const f = withMap((v) => (v.tracts[0].fields[0].acres = 80));
+    expect(findDocumentProblems(f, sample)).toEqual([
+      "fsa-map: North 80 shows 80 acres but farm.geojson expects 80.2.",
+      "fsa-map: tract 5678's cropland total is 80.2 but its cropland fields add up to 80.",
+    ]);
+  });
+
+  it("an FSA map field that isn't in farm.geojson, and a field in farm.geojson left off the map", () => {
+    const f = withMap((v) => (v.tracts[1].fields[0].field = "9"));
+    expect(findDocumentProblems(f, sample)).toEqual([
+      "fsa-map: tract 6012 field 9 is not a field in farm.geojson.",
+      "fsa-map: South 40 is in farm.geojson but not on the map.",
+    ]);
+  });
+
+  it("an FSA map tract or field listed twice", () => {
+    const f = withMap((v) => {
+      v.tracts[0].fields.push({ ...v.tracts[0].fields[0] });
+      v.tracts.push(structuredClone(v.tracts[1]));
+    });
+    const problems = findDocumentProblems(f, sample);
+    expect(problems).toContain("fsa-map: tract 6012 is listed twice.");
+    expect(problems).toContain("fsa-map: tract 5678 field 3 is listed twice.");
+  });
+
+  it("an FSA map for the wrong county or year, or with cropland the FSA-578 doesn't show", () => {
+    expect(findDocumentProblems(withMap((v) => (v.county = "Boone")), sample)).toEqual([
+      "fsa-map: North 80 is in Story County, IA, but the map says Boone County, IA.",
+      "fsa-map: South 40 is in Story County, IA, but the map says Boone County, IA.",
+    ]);
+    expect(findDocumentProblems(withMap((v) => (v.program_year = 2025)), sample)).toEqual([
+      "fsa-map: program year 2025 is not 2026.",
+      "fsa-map: the map was created on 2026-04-14, outside program year 2025.",
+    ]);
+    const nonCropland = withMap((v) => (v.tracts[1].fields[0].land_use = "non_cropland"));
+    expect(findDocumentProblems(nonCropland, sample)).toEqual([
+      "fsa-map: tract 6012's cropland total is 40 but its cropland fields add up to 0.",
+    ]);
+    const lessCropland = withMap((v) => {
+      v.tracts[1].fields[0].land_use = "non_cropland";
+      v.tracts[1].cropland_acres = 0;
+    });
+    expect(findDocumentProblems(lessCropland, sample)).toEqual([
+      "fsa-map: the tracts' cropland adds up to 80.2 acres but fsa-578 shows 120.2.",
+    ]);
+  });
+
+  it("an imagery credit for a different year than the aerial photo, and an outline that runs off the photo", () => {
+    expect(findDocumentProblems(file, sample, { ...image, year: 2025 })).toEqual([
+      'fsa-map: the imagery credit is "2023 NAIP imagery" but the aerial photo is from 2025.',
+    ]);
+    const [west, south, , north] = image.bbox;
+    expect(findDocumentProblems(file, sample, { ...image, bbox: [west, south, -93.42, north] })).toEqual([
+      "fsa-map: North 80's outline runs off the aerial photo. Run npm run fetch-naip.",
+    ]);
+  });
+
   it("a net weight that isn't gross − tare", () => {
     const f = copy();
     const t = f.documents["ticket-2"];
@@ -245,5 +353,16 @@ describe("documentsFileSchema", () => {
 
   it("refuses bushels with more decimals than the ticket prints", () => {
     expect(withTicket1((v) => (v.wet_bu = 991.4286))).toBe(false);
+  });
+
+  it("refuses an FSA map whose PLSS label isn't marked SAMPLE or whose imagery credit isn't a year of NAIP", () => {
+    const withMapValue = (change: (values: Record<string, unknown>) => void) => {
+      const raw = structuredClone(file) as unknown as { documents: Record<string, { values: Record<string, unknown> }> };
+      change(raw.documents["fsa-map"].values);
+      return documentsFileSchema.safeParse(raw).success;
+    };
+    expect(withMapValue(() => {})).toBe(true);
+    expect(withMapValue((v) => (v.plss_label = "Sec. 14 T84N R23W"))).toBe(false);
+    expect(withMapValue((v) => (v.imagery_credit = "Esri World Imagery"))).toBe(false);
   });
 });

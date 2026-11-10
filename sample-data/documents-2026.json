@@ -207,6 +207,31 @@
         "weigher": "KL"
       }
     },
+    "fsa-map": {
+      "kind": "fsa_map",
+      "delivery": "photo",
+      "values": {
+        "program_year": 2026,
+        "farm_number": "1234",
+        "state": "IA",
+        "county": "Story",
+        "map_created_date": "2026-04-14",
+        "tracts": [
+          {
+            "tract": "5678",
+            "cropland_acres": 80.2,
+            "fields": [{ "field": "3", "acres": 80.2, "hel": "NHEL", "land_use": "cropland" }]
+          },
+          {
+            "tract": "6012",
+            "cropland_acres": 40,
+            "fields": [{ "field": "1", "acres": 40, "hel": "NHEL", "land_use": "cropland" }]
+          }
+        ],
+        "plss_label": "SAMPLE: Sec. 14 T84N R23W",
+        "imagery_credit": "2023 NAIP imagery"
+      }
+    },
     "fsa-578": {
       "kind": "fsa_578",
       "delivery": "photo",
