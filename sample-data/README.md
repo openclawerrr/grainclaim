@@ -14,7 +14,7 @@ The farm sits on real ground in rural Story County, Iowa, so its map lines up wi
 | `season-2026.json` | The 2026 corn policy, Units 1 and 2, and a field season for each field | `season-2026` |
 | `documents-2026.json` | Every value on Dave's 2026 sample documents (6 scale tickets, the FSA map, the FSA-578, the Summary of Coverage, the settlement), keyed by document name. It's the answer key for the reading tests | Not loaded: the documents are read live in the demo |
 | `print/` | The documents as one-page PDFs, made from `documents-2026.json` by `npm run print-docs`. How to print, fill in and photograph them: [`print/README.md`](print/README.md) | Not loaded |
-| `photos/` | Phone photos of the printed tickets and FSA-578, named after each document (`ticket-3.jpg`). Inputs for the reading tests. The FSA map's photo (`fsa-map.jpg`) is added once its PDF is approved | Not loaded |
+| `photos/` | Phone photos of the printed tickets, the FSA-578 and the FSA map, named after each document (`ticket-3.jpg`). Inputs for the reading tests. The map's photo has no GPS: see [`photos/README.md`](photos/README.md) | Not loaded |
 | `reference/` | Real blank forms (the Wisconsin SAMPLE scale ticket, the FSA-578), for layout only, and the public data the outlines and the FSA map are built from (see "Public data in `reference/`") | Not loaded |
 
 `season-2026.json` points to fields by name and to units by unit number, so it reads easily. The seed turns those into IDs.
