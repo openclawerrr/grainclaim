@@ -33,16 +33,16 @@ describe("parseArgs", () => {
     });
   });
 
-  it("read takes one file, tells its kind from its name and uses Sonnet unless told otherwise", () => {
+  it("read takes one file, tells its kind from its name and uses Haiku unless told otherwise", () => {
     expect(parseArgs(["read", "sample-data/photos/fsa-578.jpg"])).toEqual({
       kind: "read",
       file: "sample-data/photos/fsa-578.jpg",
       document: "fsa_578",
-      model: "sonnet",
-    });
-    expect(parseArgs(["read", "--model=haiku", "summary-of-coverage.pdf"])).toMatchObject({
-      document: "summary_of_coverage",
       model: "haiku",
+    });
+    expect(parseArgs(["read", "--model=sonnet", "summary-of-coverage.pdf"])).toMatchObject({
+      document: "summary_of_coverage",
+      model: "sonnet",
     });
   });
 

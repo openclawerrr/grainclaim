@@ -4,11 +4,14 @@
 
 ## What we picked
 
-**Claude Sonnet 5.5** (`claude-sonnet-5-5`) reads ticket photos, the FSA-578 and the Summary of Coverage, through the Claude API with structured outputs. It is `DEFAULT_READ_MODEL` in `lib/extract/models.ts`; switching models is a one-word change.
+- **Tickets: Claude Sonnet 5.5** (`claude-sonnet-5-5`). It is `DEFAULT_READ_MODEL` in `lib/extract/models.ts`.
+- **FSA-578 and Summary of Coverage: Claude Haiku 5.5** (`claude-haiku-5-5`), for cost. It is `DEFAULT_FORM_READ_MODEL` in the same file.
+
+All three are read through the Claude API with structured outputs, and switching either model is a one-word change.
 
 ## The main alternative
 
-**Claude Haiku 5.5** (`claude-haiku-5-5`): the same API, prompt and schema, at about one eighteenth of the cost.
+The other model in each case: the same API, prompt and schema. Haiku costs about one eighteenth of what Sonnet does.
 
 ## What we measured: tickets
 
@@ -43,19 +46,26 @@
 | Time per FSA-578 | 5.3 s | 2.9 s |
 | Time per Summary of Coverage | 3.5 s | 3.6 s |
 
-- **Neither model missed a value,** so these scores don't separate the models either. Sonnet stays the choice for the same reason as for tickets: a judgment about harder documents, not a measurement.
+- **Neither model missed a value,** so these scores don't separate the models. That is why cost decides for these two documents (see "Why Haiku for the FSA-578 and Summary of Coverage").
 - **Both read correctly with the first prompts and schemas.** Nothing was tuned against the sample.
 - **Rows are scored by what identifies them,** not by their position: an FSA-578 field by its farm, tract and field number, a share by its producer key, a unit by its unit number. A row the read leaves out counts every one of its values as a miss, and so does a row the document doesn't have.
 - **Cost** is from the tokens each read was billed: about 8,600 in and 400 out for the FSA-578 photo, and about 6,500 in and 500 (Sonnet) to 960 (Haiku) out for the PDF.
 
-## Why Sonnet
+## Why Sonnet for tickets
 
 - **Reliability on harder photos in a live demo.** The measured scores don't separate the models, so this is a judgment, not a measurement: a ticket photographed live will be harder than our six, and the larger model is the safer one to put in front of judges. Sonnet was also the only model with no misses at all.
 - **Cost doesn't decide it.** A farm with 300 tickets in a season (our example, not a measured number) would pay about $6 with Sonnet and $0.33 with Haiku. Either is small next to one wrong load on a production report.
 
+## Why Haiku for the FSA-578 and Summary of Coverage
+
+- **Haiku matched Sonnet on every value.** Both read 237 of 237, with no failed reads, so there is no measured accuracy to pay for.
+- **Cost.** One read of each document costs about $0.04 with Sonnet and $0.002 with Haiku.
+- **Unlike on tickets, Haiku had no misses at all here.** Its ticket misses were all one unstored value, the buyer's address.
+- **The risk is the same one as for tickets, taken the other way.** A real FSA-578 or another insurer's summary will be harder than our two samples, and the smaller model may fall behind on them. The checks in `lib/rules/` flag a number that doesn't add up whichever model read it, and `--model sonnet` (or changing `DEFAULT_FORM_READ_MODEL`) switches back.
+
 ## Haiku for the second read, later
 
-AGENTS.md says a value's confidence comes from the arithmetic checks and a second independent read. The second read isn't built yet. Haiku is a cheap candidate for it: it matched Sonnet on every stored value here, it is a different model from the first read, and it would add about a tenth of a cent per ticket.
+AGENTS.md says a value's confidence comes from the arithmetic checks and a second independent read. The second read isn't built yet. Haiku is a cheap candidate for it on tickets: it matched Sonnet on every stored value here, it is a different model from the first read, and it would add about a tenth of a cent per ticket. For the FSA-578 and Summary of Coverage, where Haiku is the first read, the independent second read would be Sonnet.
 
 ## What this doesn't show
 
@@ -67,7 +77,7 @@ AGENTS.md says a value's confidence comes from the arithmetic checks and a secon
 
 ## What would change this
 
-If Haiku still matches Sonnet on a harder set (more handwritten tickets, worse photos, other buyers' forms), switch to Haiku. Add photos to `sample-data/photos/` with their answers in `documents-2026.json` and run `npm run score-tickets` or `npm run score-documents` again.
+If Haiku still matches Sonnet on a harder set of tickets (more handwritten tickets, worse photos, other buyers' forms), switch tickets to Haiku too. If Haiku misses values on a harder FSA-578 or Summary of Coverage (many fields, several crops, another insurer's layout, a photo of a summary) that Sonnet reads, switch those back to Sonnet. Add photos to `sample-data/photos/` with their answers in `documents-2026.json` and run `npm run score-tickets` or `npm run score-documents` again.
 
 ## Details worth knowing
 

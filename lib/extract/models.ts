@@ -12,8 +12,15 @@ export const READ_MODELS = {
 export type ReadModelKey = keyof typeof READ_MODELS;
 export const READ_MODEL_KEYS = Object.keys(READ_MODELS) as ReadModelKey[];
 
-/** The model that reads documents unless another is asked for. Why: docs/decisions/document-reading-model.md. */
+/** The model that reads tickets unless another is asked for. Why: docs/decisions/document-reading-model.md. */
 export const DEFAULT_READ_MODEL: ReadModelKey = "sonnet";
+
+/**
+ * The model that reads the FSA-578 and Summary of Coverage unless another is
+ * asked for. It matched Sonnet on every value of both at about one eighteenth
+ * of the cost. Why: docs/decisions/document-reading-model.md.
+ */
+export const DEFAULT_FORM_READ_MODEL: ReadModelKey = "haiku";
 
 export interface ReadUsage {
   input_tokens: number;

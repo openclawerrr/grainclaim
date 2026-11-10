@@ -1,7 +1,7 @@
 /** Command-line options for `npm run read-document` and `npm run score-documents`. Pure, so it is tested without the API. */
 import path from "node:path";
 import type { DocumentKindKey } from "../../lib/extract/document-kinds";
-import { DEFAULT_READ_MODEL, READ_MODEL_KEYS, type ReadModelKey } from "../../lib/extract/models";
+import { DEFAULT_FORM_READ_MODEL, READ_MODEL_KEYS, type ReadModelKey } from "../../lib/extract/models";
 
 export type Command =
   | { kind: "help" }
@@ -21,7 +21,7 @@ export const USAGE = [
   "  npm run read-document -- <file> [--kind fsa-578|summary-of-coverage] [--model sonnet|haiku]",
   "      Read one FSA-578 or Summary of Coverage (a photo or a PDF) and print",
   "      its values and checks. The kind comes from the file's name unless",
-  "      --kind gives it.",
+  "      --kind gives it. Haiku reads it unless --model says otherwise.",
   "",
   "  npm run score-documents [-- options]",
   "      Read the sample FSA-578 photo and Summary of Coverage PDF and score",
@@ -108,7 +108,7 @@ export function parseArgs(argv: readonly string[]): Command {
         `Can't tell from its name what kind of document "${path.basename(file)}" is. Add --kind fsa-578 or --kind summary-of-coverage.`,
       );
     }
-    return { kind: "read", file, document, model: model ?? DEFAULT_READ_MODEL };
+    return { kind: "read", file, document, model: model ?? DEFAULT_FORM_READ_MODEL };
   }
   if (positional.length > 0) {
     throw new Error(`score-documents reads the sample documents, so it takes no file names (got "${positional[0]}").`);
