@@ -24,6 +24,8 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 ### Folder layout
 
 - `app/`: screens. `app/api/`: server routes.
+- `components/shell/`: the frame around every screen (top bar, icon rail, role switcher). `components/home/`: the farmer's and agent's home screens. `components/ui/`: shadcn/ui components.
+- `lib/role/`: the two roles. `getCurrentRole()` in `current-role.ts` reads the current role on the server.
 - `lib/rules/`: calculations, matching rules and flags. Pure functions only: plain data in, results out, no database or framework calls. Every function has Vitest tests next to it.
 - `lib/extract/`: document reading, one schema per document type
 - `lib/db/`: database queries
@@ -52,7 +54,8 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 - Never print, copy or commit the contents of `.env.local`. Variable names are listed in `SETUP.md`.
 - Store raw values from documents (gross, tare, moisture) and calculate elevator and insurance bushels separately; they differ.
 - A read value's confidence comes from checks we can explain (gross − tare = net; net ÷ standard weight = bushels; date inside harvest) and a second independent read, not from the model rating itself.
-- The demo has no logins. A Farmer / Agent switcher changes the view. The current role is saved in each record's "who" field (`uploaded_by`, `created_by`, `resolved_by`), because the audit log can't tell who acted.
+- The demo has no logins. A Farmer / Agent switcher changes the view. The current role is saved in each record's "who" field (`uploaded_by`, `created_by`, `resolved_by`), because the audit log can't tell who acted. Get the role with `getCurrentRole()` from `lib/role/current-role.ts` when saving; never take it from a request body or form field. It reads a cookie, so a component that awaits it must sit inside a `<Suspense>` boundary.
+- Colors and fonts come from `docs/design.md` and are set up as theme tokens in `app/globals.css`. Use the class names (`bg-page`, `text-ink`, `border-line`, `bg-green-700`, `font-heading`); never write a hex value in a screen.
 - Before opening a pull request, `npx vitest run`, `npm run lint` and `npm run build` must pass.
 
 ### How the farmer's records work

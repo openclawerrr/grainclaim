@@ -20,6 +20,7 @@ _Last updated: November 9, 2026._
 - [x] Seed: `npm run seed` loads Dave's farm in stages (`farm-base` → `fields` → `season-2026`) and resets it safely
 - [x] Sample documents: `npm run print-docs` and the PDFs in `sample-data/print/` (PR #6)
 - [ ] Sample photos in `sample-data/photos/`
+- [x] App shell and roles: the top bar, icon rail, Farmer / Agent switcher and a placeholder home screen for each role
 - [ ] Everything below
 
 ## Who owns what
@@ -47,7 +48,7 @@ _Last updated: November 9, 2026._
 - **Seed and reset (A).** Done.
 - **Sample documents (B).** Done (PR #6). Print and photograph the tickets and the FSA-578 into `sample-data/photos/`, named after each document (`ticket-3.jpg`); the Summary of Coverage and settlement are uploaded as the PDFs themselves.
 - **Ticket reading (B).** Done. `npm run read-ticket -- <photo>` reads one ticket photo with Claude structured outputs into a schema with every ticket field (including the time in) and runs the arithmetic checks. `npm run score-tickets` reads every sample photo with Claude Sonnet 5.5 and Claude Haiku 5.5 and scores each value against the answer key in `documents-2026.json`. The scores are in `docs/decisions/document-reading-model.md`.
-- **App shell and roles (C).** Replace the welcome page with a role switcher (Farmer, Agent) and a home screen for each, laid out for a laptop browser. The current role is passed to the server and saved in each record's "who" fields, since the audit log can't see who acted without logins.
+- **App shell and roles (C).** Done. The welcome page is replaced with a role switcher (Farmer, Agent) and a home screen for each, laid out for a laptop browser, with the colors and fonts from `docs/design.md`. The role is kept in a cookie; server code reads it with `getCurrentRole()` in `lib/role/` and saves it in each record's "who" fields, since the audit log can't see who acted without logins. The home screens are placeholders: the buttons are off, the totals are dashes and the farm name in the top bar is fixed text, until their screens and `lib/db/` are built.
 - **Decision records (anyone).** A short page each for the main choices (document reading model, database, map) in `docs/decisions/`, so the team can answer "why this?" from the judges.
 
 ### 2. Thin slice: one load, start to finish

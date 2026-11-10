@@ -39,6 +39,7 @@ Reference 2: outlined fields over satellite imagery, and big numbers with small 
 | Card | #FFFFFF | Cards, panels, the top bar |
 | Ink | #1E2A21 | Main text |
 | Muted ink | #5F6B62 | Labels, secondary text |
+| Line | #DFE6DA | Card edges, dividers, the borders of the top bar and icon rail |
 | Green 700 | #2F6B3A | Main buttons, active nav; white text sits on it |
 | Green 500 | #5A9E4B | Field outlines, progress bars |
 | Green 100 | #E7F1E1 | Field fill, selected rows, chips |
@@ -51,6 +52,7 @@ Reference 2: outlined fields over satellite imagery, and big numbers with small 
   --card: #FFFFFF;
   --ink: #1E2A21;
   --ink-muted: #5F6B62;
+  --line: #DFE6DA;
   --green-700: #2F6B3A;
   --green-500: #5A9E4B;
   --green-100: #E7F1E1;
@@ -58,6 +60,8 @@ Reference 2: outlined fields over satellite imagery, and big numbers with small 
   --yellow-100: #FDF5D8;
 }
 ```
+
+These are set up in `app/globals.css` as theme tokens, so screens use class names (`bg-page`, `text-ink`, `text-ink-muted`, `border-line`, `bg-green-700`, `bg-yellow-100`) and never a hex value.
 
 ## Fonts
 
