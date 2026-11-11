@@ -1,7 +1,15 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { captureInfoFromExif, photoType, readCaptureInfo, sha256Hex, ticketPhotoPath } from "./photo-file";
+import {
+  captureInfoFromExif,
+  documentFilePath,
+  documentFileType,
+  photoType,
+  readCaptureInfo,
+  sha256Hex,
+  ticketPhotoPath,
+} from "./photo-file";
 
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00]);
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -28,6 +36,26 @@ describe("sha256Hex", () => {
 
   it("changes when one byte changes", () => {
     expect(sha256Hex(JPEG)).not.toBe(sha256Hex(new Uint8Array([...JPEG.slice(0, 4), 0x01])));
+  });
+});
+
+describe("documentFileType", () => {
+  const PDF = new TextEncoder().encode("%PDF-1.7");
+
+  it("tells a PDF, a JPEG and a PNG from their first bytes", () => {
+    expect(documentFileType(PDF)).toEqual({ mediaType: "application/pdf", extension: "pdf" });
+    expect(documentFileType(JPEG)).toEqual({ mediaType: "image/jpeg", extension: "jpg" });
+    expect(documentFileType(PNG)).toEqual({ mediaType: "image/png", extension: "png" });
+  });
+
+  it("is null for anything else", () => {
+    expect(documentFileType(new TextEncoder().encode("PK zip"))).toBeNull();
+    expect(documentFileType(new Uint8Array())).toBeNull();
+  });
+
+  it("keeps documents in their own folder, named by hash with the real extension", () => {
+    expect(documentFilePath("abc123", documentFileType(PDF)!)).toBe("documents/abc123.pdf");
+    expect(documentFilePath("abc123", documentFileType(JPEG)!)).toBe("documents/abc123.jpg");
   });
 });
 

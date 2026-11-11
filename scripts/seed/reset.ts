@@ -5,8 +5,10 @@
  * 1. Start from the fixed IDs in sample-data/ (the insured and the elevator
  *    are the roots).
  * 2. Collect everything that belongs to them, including rows the app made
- *    during a demo: fields imported live from farm.geojson, trips, tickets on
- *    those trips, flags on any of these rows.
+ *    during a demo: fields imported live from farm.geojson, bins added from
+ *    the map, the season set up from the FSA-578 and Summary of Coverage and
+ *    those two documents, trips, tickets on those trips, flags on any of
+ *    these rows.
  * 3. Delete children first, one table at a time, by ID.
  *
  * audit_event is never touched. It is append-only (a trigger blocks update
@@ -23,8 +25,9 @@
  * through duplicate_of, which points at the first ticket, and deleted before
  * the ticket it points to.
  *
- * Photo files are left in Storage. Each is named by its hash, so adding the
- * same photo after a reset stores nothing new.
+ * Photo and document files are left in Storage. Each is named by its hash,
+ * so adding the same file after a reset stores nothing new. The document
+ * rows are removed, so the same FSA-578 can be added (and read) again.
  *
  * Gaps for later stages:
  * - Any other ticket with no trip (the late emailed ticket, before it
@@ -50,6 +53,7 @@ export const DELETE_ORDER = [
   "truck",
   "bin",
   "field",
+  "document",
   "buyer",
   "insured",
 ] as const;
@@ -98,6 +102,8 @@ export async function collectSampleRows(
   const buyer = union(fixed.buyer);
   const field = union(fixed.field, await where("field", "insured_id", insured));
   const bin = union(fixed.bin, await where("bin", "insured_id", insured));
+  // The seed loads no documents; these are the ones the farmer added in the app.
+  const document = union(await where("document", "insured_id", insured));
   const truck = union(
     fixed.truck,
     await where("truck", "insured_id", insured),
@@ -123,11 +129,11 @@ export async function collectSampleRows(
     await where(
       "flag",
       "record_id",
-      union(insured, buyer, field, bin, truck, policy, unit, field_season, trip, ticket),
+      union(insured, buyer, field, bin, truck, policy, unit, field_season, trip, ticket, document),
     ),
   );
 
-  return { flag, ticket, trip, field_season, unit, policy, truck, bin, field, buyer, insured };
+  return { flag, ticket, trip, field_season, unit, policy, truck, bin, field, document, buyer, insured };
 }
 
 /** Deletes the sample farm. Returns how many rows each table lost. */

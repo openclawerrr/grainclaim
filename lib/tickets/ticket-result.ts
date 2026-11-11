@@ -49,8 +49,10 @@ export interface TicketResult {
   /** The trip this ticket closed, or null when it has none. */
   origin: {
     fieldName: string | null;
-    /** Null when the field has no season in the trip's crop year. */
+    /** Null when the field has no season in the trip's crop year, or isn't insured. */
     unitNumber: string | null;
+    /** False when the field's season that year isn't insured: the ticket then counts toward no unit's total. */
+    insured: boolean | null;
     tripCode: string;
   } | null;
 

@@ -4,7 +4,8 @@
  * in the trip's crop year → unit. There is no stored counter.
  *
  * A ticket counts only when the whole chain is there. A ticket with no trip
- * (a second photo of the same ticket, or one not linked yet) counts nowhere.
+ * (a second photo of the same ticket, or one not linked yet) counts nowhere,
+ * and neither does one from a field that isn't insured, which has no unit.
  * Grain sold out of a bin (ticket ← trip ← bin ← fields) isn't followed yet;
  * that comes with bin contents in Milestone 4.
  *
@@ -21,7 +22,8 @@ export interface ChainTicket {
 export interface ChainFieldSeason {
   field_id: string;
   crop_year: number;
-  unit_id: string;
+  /** Null for a field that isn't insured: it is in no unit, so its tickets count toward no unit's total. */
+  unit_id: string | null;
 }
 
 export interface ChainUnit {

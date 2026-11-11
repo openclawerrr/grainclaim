@@ -56,17 +56,20 @@ export async function loadTicketResult(db: SupabaseClient, ticketId: string): Pr
   if (!data) return null;
   const row = data as unknown as TicketRow;
 
-  // The field's season in the trip's crop year gives the unit.
+  // The field's season in the trip's crop year gives the unit. A field that isn't insured has a season and no unit.
   let unitNumber: string | null = null;
+  let insured: boolean | null = null;
   if (row.trip?.origin_field_id) {
     const season = await db
       .from("field_season")
-      .select("unit(unit_number)")
+      .select("insured, unit(unit_number)")
       .eq("field_id", row.trip.origin_field_id)
       .eq("crop_year", row.trip.crop_year)
       .maybeSingle();
     if (season.error) throw new Error(`Reading the field's season failed: ${season.error.message}`);
-    unitNumber = (season.data as unknown as { unit: { unit_number: string } | null } | null)?.unit?.unit_number ?? null;
+    const found = season.data as unknown as { insured: boolean; unit: { unit_number: string } | null } | null;
+    unitNumber = found?.unit?.unit_number ?? null;
+    insured = found?.insured ?? null;
   }
 
   const printed = row.other_printed_values ?? {};
@@ -86,7 +89,7 @@ export async function loadTicketResult(db: SupabaseClient, ticketId: string): Pr
       production_to_count_bu: row.production_to_count_bu,
     },
     origin: row.trip
-      ? { fieldName: row.trip.field?.name ?? null, unitNumber, tripCode: row.trip.trip_code }
+      ? { fieldName: row.trip.field?.name ?? null, unitNumber, insured, tripCode: row.trip.trip_code }
       : null,
     duplicateOf: row.original
       ? { ticketNumber: row.original.ticket_number, uploadedAt: row.original.uploaded_at }

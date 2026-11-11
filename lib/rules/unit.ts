@@ -73,6 +73,24 @@ export function guaranteeBushels({
   return approvedYield * coverageLevel * acres * share;
 }
 
+/**
+ * A unit's planted acres: its fields' planted acres for one crop year, added
+ * up. These are the acres its guarantee is figured on. A field that isn't
+ * insured has no unit, so it is in none of them.
+ */
+export function unitPlantedAcres(
+  fieldSeasons: readonly { unit_id: string | null; crop_year: number; planted_acres: number }[],
+  unitId: string,
+  cropYear: number,
+): number {
+  return fieldSeasons
+    .filter((fieldSeason) => fieldSeason.unit_id === unitId && fieldSeason.crop_year === cropYear)
+    .reduce((total, fieldSeason) => {
+      requireNonNegative("Planted acres", fieldSeason.planted_acres);
+      return total + fieldSeason.planted_acres;
+    }, 0);
+}
+
 /** Insured's share of production: unit production to count × insured's share. */
 export function insuredShareOfProduction(productionBu: number, share: number): number {
   requireNonNegative("Unit production (bu)", productionBu);

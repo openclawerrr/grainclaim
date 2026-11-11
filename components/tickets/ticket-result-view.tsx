@@ -72,7 +72,10 @@ export function TicketResultView({ ticket }: { ticket: TicketResult }) {
           {ticket.origin ? (
             <>
               <Row label="Field" value={ticket.origin.fieldName} />
-              <Row label="Unit" value={ticket.origin.unitNumber ? `Unit ${ticket.origin.unitNumber}` : null} />
+              <Row
+                label="Unit"
+                value={ticket.origin.insured === false ? "Not insured" : ticket.origin.unitNumber ? `Unit ${ticket.origin.unitNumber}` : null}
+              />
               <Row label="Trip" value={ticket.origin.tripCode} />
             </>
           ) : (

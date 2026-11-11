@@ -62,7 +62,7 @@ Every sample document says "SAMPLE ONLY" at the top and bottom and carries a fai
 npm run seed                            # remove the sample farm, then load every stage
 npm run seed -- --through farm-base     # demo beat 1: the farm name, elevator, trucks and Bin 4; no Bin 3, fields or season
 npm run seed -- --through bin-3         # Bin 3 too, but no fields or season
-npm run seed -- --through fields        # fields too, but no 2026 season
+npm run seed -- --through fields        # fields too, but no 2026 season: set it up in the app from the FSA-578 and Summary of Coverage
 npm run seed -- --reset-only            # remove the sample farm, load nothing
 npm run seed -- --list                  # list the stages
 ```
@@ -91,6 +91,8 @@ Before demo beat 1, run `--through farm-base`. A live import of `farm.geojson` w
 | FSA-578 | North 80 at 80.20 acres (key 1, share 1.0000); South 40 at 40.00 acres (key 1 at 0.6667, key 2 Pat Landowner (SAMPLE) at 0.3333) |
 | Summary of Coverage | Sample Mutual Crop Insurance (fictional). Unit 1 at 80.00 acres, guarantee 10,800 bu; Unit 2 at 40.00 acres, 3,600 bu. Season setup uses the FSA-578's 80.20 acres, so Unit 1's guarantee becomes 10,827 bu |
 | Settlement | Main Street Elevator, contract SAMPLE-C-2611 at $4.18: 5 of the 6 tickets. Ticket 5 (No. 20941) is missing |
+
+**The season, seeded or set up in the app.** The `season-2026` stage loads the policy, units and field seasons directly, with no documents and no flag. Setting the season up in the app from `photos/fsa-578.jpg` and `print/summary-of-coverage.pdf` gives the same policy, units and field seasons under new IDs, plus the two saved documents and the acre-mismatch flag (80.20 vs 80.00). Its field seasons have no planting-completed date, because the FSA-578 prints one planting date per field. To do that, seed `--through fields` first: a season that is already there is never replaced. The reset removes a season and documents added in the app along with the rest of the sample farm, and it reads the `document` table, so the database needs that migration before the seed will run.
 
 Not loaded yet: the harvest log, trips, tickets, the settlement, elevator truck #22's pickup and the hail notice. They belong to later stages or happen live in the demo. The documents in `documents-2026.json` aren't loaded either; the demo reads them live, so the acre-mismatch flag (80.20 vs 80.00) and the missing-load flag (ticket 5) come from reading them.
 

@@ -35,6 +35,27 @@ export function ticketPhotoPath(hash: string, type: PhotoType): string {
   return `tickets/${hash}.${type.extension}`;
 }
 
+/** A document arrives as a photo or as the PDF itself. */
+export interface DocumentFileType {
+  mediaType: PhotoType["mediaType"] | "application/pdf";
+  /** The file's real extension, from its contents, not from its name. */
+  extension: PhotoType["extension"] | "pdf";
+}
+
+/** JPEG, PNG or PDF, told from the first bytes. Null for anything else. */
+export function documentFileType(file: Uint8Array): DocumentFileType | null {
+  // "%PDF"
+  if (file[0] === 0x25 && file[1] === 0x50 && file[2] === 0x44 && file[3] === 0x46) {
+    return { mediaType: "application/pdf", extension: "pdf" };
+  }
+  return photoType(file);
+}
+
+/** Where an FSA-578, Summary of Coverage or FSA map is kept in the `photos` bucket: named by its hash, with its real extension. */
+export function documentFilePath(hash: string, type: DocumentFileType): string {
+  return `documents/${hash}.${type.extension}`;
+}
+
 export interface CaptureInfo {
   /**
    * When the photo was taken, in a form Postgres reads as a moment in time:

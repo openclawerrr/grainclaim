@@ -86,6 +86,18 @@ describe("resetSampleFarm", () => {
       { id: "flag-field", record_type: "field", record_id: "live-field" },
       { id: "flag-ticket", record_type: "ticket", record_id: "ticket-1" },
     ];
+    // Season setup: the two documents Dave added, a season made from them under new IDs, and its flags.
+    tables.document = [
+      { id: "doc-fsa", insured_id: INSURED, kind: "fsa_578" },
+      { id: "doc-coverage", insured_id: INSURED, kind: "summary_of_coverage" },
+    ];
+    tables.policy.push({ id: "live-policy", insured_id: INSURED, crop: "soybeans" });
+    tables.unit.push({ id: "live-unit", policy_id: "live-policy", unit_number: "1" });
+    tables.field_season.push({ id: "live-field-season", field_id: "live-field", unit_id: "live-unit" });
+    tables.flag.push(
+      { id: "flag-unit", record_type: "unit", record_id: "live-unit" },
+      { id: "flag-document", record_type: "document", record_id: "doc-fsa" },
+    );
     // Someone else's farm on the shared database must survive.
     tables.insured.push({ id: "other-insured", name: "Test Farm" });
     tables.field.push({ id: "other-field", insured_id: "other-insured", name: "Back 40" });
@@ -93,20 +105,22 @@ describe("resetSampleFarm", () => {
     tables.trip.push({ id: "other-trip", truck_id: "other-truck", origin_field_id: "other-field", dest_buyer_id: "other-buyer" });
     tables.buyer.push({ id: "other-buyer", name: "Other Elevator" });
     tables.flag.push({ id: "other-flag", record_type: "field", record_id: "other-field" });
+    tables.document.push({ id: "other-document", insured_id: "other-insured", kind: "fsa_578" });
 
     const { db, tables: after } = fakeDb(tables);
     const removed = await resetSampleFarm(db, files);
 
     expect(removed).toEqual({
-      flag: 2,
+      flag: 4,
       ticket: 1,
       trip: 2,
-      field_season: 2,
-      unit: 2,
-      policy: 1,
+      field_season: 3,
+      unit: 3,
+      policy: 2,
       truck: 2,
       bin: 2,
       field: 3,
+      document: 2,
       buyer: 1,
       insured: 1,
     });
@@ -120,6 +134,7 @@ describe("resetSampleFarm", () => {
       trip: ["other-trip"],
       buyer: ["other-buyer"],
       flag: ["other-flag"],
+      document: ["other-document"],
       ticket: [],
       bin: [],
       policy: [],
