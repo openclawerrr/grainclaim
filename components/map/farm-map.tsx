@@ -96,15 +96,8 @@ export function FarmMap({ bins, fields, nextBinName }: { bins: SavedBin[]; field
   const [mapProblem, setMapProblem] = useState(false);
   const [ready, setReady] = useState(false);
 
-  // Fields from the FSA map. Each answer is numbered, so the file chooser starts fresh after one: the browser
-  // empties it when a form is sent.
-  const [read, submitRead, reading] = useActionState(
-    async (previous: { answer: ReadFsaMapState; count: number }, formData: FormData) => ({
-      answer: await readFsaMapAction(previous.answer, formData),
-      count: previous.count + 1,
-    }),
-    { answer: NOT_READ, count: 0 },
-  );
+  // Fields from the FSA map.
+  const [read, submitRead, reading] = useActionState(readFsaMapAction, NOT_READ);
   const [confirmed, submitConfirm, confirming] = useActionState(confirmFieldsAction, NOT_CONFIRMED);
   /** The last answers from the server the farmer has moved on from. */
   const [seenRead, setSeenRead] = useState<ReadFsaMapState>(NOT_READ);
@@ -125,7 +118,7 @@ export function FarmMap({ bins, fields, nextBinName }: { bins: SavedBin[]; field
   // Fields that were just saved end the adding, and are named until the farmer starts something else.
   const fieldsSaved = confirmed.status === "saved" && confirmed !== seenConfirm ? confirmed : null;
   const fieldsOpen = addingFields && !fieldsSaved;
-  const readAnswer = read.answer !== seenRead ? read.answer : NOT_READ;
+  const readAnswer = read !== seenRead ? read : NOT_READ;
   /** The fields his map would add, waiting for him to confirm. */
   const proposed = fieldsOpen && readAnswer.status === "ready" ? readAnswer : null;
   const choosingFsaMap = fieldsOpen && !proposed;
@@ -346,7 +339,7 @@ export function FarmMap({ bins, fields, nextBinName }: { bins: SavedBin[]; field
 
   /** Puts away whatever the fields panel last showed. */
   function leaveFields() {
-    setSeenRead(read.answer);
+    setSeenRead(read);
     setSeenConfirm(confirmed);
     setPicked(null);
   }
@@ -435,7 +428,6 @@ export function FarmMap({ bins, fields, nextBinName }: { bins: SavedBin[]; field
 
         {choosingFsaMap ? (
           <ChooseFsaMap
-            key={read.count}
             submit={submitRead}
             reading={reading}
             spot={farmSpot}

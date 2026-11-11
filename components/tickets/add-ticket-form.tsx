@@ -6,6 +6,7 @@ import { addTicketAction, type AddTicketState } from "@/app/tickets/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { formatDayOf } from "@/lib/format";
+import { sendKeepingForm } from "@/lib/submit-form";
 import { FARM_TIME_ZONE } from "@/lib/tickets/farm-time-zone";
 import type { TicketResult } from "@/lib/tickets/ticket-result";
 import { cn } from "@/lib/utils";
@@ -55,7 +56,8 @@ function AddOneTicket({ onAddAnother }: { onAddAnother: () => void }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={submit} className="flex flex-col gap-4">
+          {/* Sent from onSubmit, so a photo that couldn't be added stays chosen and can be tried again. */}
+          <form onSubmit={sendKeepingForm(submit)} className="flex flex-col gap-4">
             <label
               className={cn(
                 buttonVariants({ variant: "outline" }),

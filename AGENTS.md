@@ -36,6 +36,7 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 - `lib/fields/`: adding fields from a photo of the FSA map, start to finish (`add-fields.ts`), built the same way: read and save the photo and pair its fields with outlines near the farmer's click, then write the fields when he confirms. Which outline pairs with which field (`outline-pairing.ts`), what a new field is called (`field-names.ts`) and what is proposed (`field-proposal.ts`) are worked out in `lib/rules/`. `nearby-outlines.ts` loads the public outlines; for the demo that is `sample-data/nearby-outlines.geojson`.
 - `lib/map/`: small map geometry for screens (where a field's label goes, the area some points cover)
 - `lib/format.ts`: how numbers, dates and times are shown. Calculations never round; screens do.
+- `lib/submit-form.ts`: how a form with a file chooser is sent to a server action (`sendKeepingForm`, from `onSubmit`). React empties a form sent through its `action` prop, so a failed read would lose the chosen files.
 - `supabase/migrations/`: database structure changes
 - `sample-data/`: Dave's sample farm and documents. Everything in it is made up and marked SAMPLE. See `sample-data/README.md`.
   - `documents-2026.json`: every value on every sample document, and the answer key for reading tests. To change a document, edit this file, run `npm run print-docs`, then reprint and re-photograph it.

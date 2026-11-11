@@ -10,6 +10,7 @@ import {
 } from "@/app/season/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
+import { sendKeepingForm } from "@/lib/submit-form";
 import { cn } from "@/lib/utils";
 import { SeasonProposalView, seasonTitle } from "./season-proposal";
 
@@ -27,14 +28,7 @@ export function SeasonSetup() {
 }
 
 function SetUpOnce({ onStartOver }: { onStartOver: () => void }) {
-  // Each answer is numbered, so the file choosers start fresh after one: the browser empties them when a form is sent.
-  const [read, submitRead, reading] = useActionState(
-    async (previous: { answer: ReadSeasonState; count: number }, formData: FormData) => ({
-      answer: await readSeasonDocumentsAction(previous.answer, formData),
-      count: previous.count + 1,
-    }),
-    { answer: IDLE as ReadSeasonState, count: 0 },
-  );
+  const [read, submitRead, reading] = useActionState(readSeasonDocumentsAction, IDLE as ReadSeasonState);
   const [confirmed, submitConfirm, confirming] = useActionState(confirmSeasonAction, IDLE as ConfirmSeasonState);
 
   if (confirmed.status === "set_up") {
@@ -59,8 +53,8 @@ function SetUpOnce({ onStartOver }: { onStartOver: () => void }) {
     );
   }
 
-  if (read.answer.status === "ready") {
-    const { proposal, warnings, documents } = read.answer;
+  if (read.status === "ready") {
+    const { proposal, warnings, documents } = read;
     return (
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-6 rounded-2xl bg-card px-6 py-4 shadow-card ring-1 ring-line">
@@ -99,10 +93,10 @@ function SetUpOnce({ onStartOver }: { onStartOver: () => void }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ChooseDocuments key={read.count} submit={submitRead} reading={reading} />
-          {read.answer.status === "problem" && !reading ? (
+          <ChooseDocuments submit={submitRead} reading={reading} />
+          {read.status === "problem" && !reading ? (
             <div className="mt-4">
-              <Problems messages={read.answer.messages} />
+              <Problems messages={read.messages} />
             </div>
           ) : null}
         </CardContent>
@@ -127,10 +121,14 @@ function Problems({ messages }: { messages: string[] }) {
   );
 }
 
+/**
+ * The two file choosers. After a read that fails, both keep their files, so only the wrong one needs replacing:
+ * the form is sent from onSubmit, because React empties a form sent through its `action` prop.
+ */
 function ChooseDocuments({ submit, reading }: { submit: (formData: FormData) => void; reading: boolean }) {
   const [names, setNames] = useState<{ fsa578: string | null; coverage: string | null }>({ fsa578: null, coverage: null });
   return (
-    <form action={submit} className="flex flex-col gap-4">
+    <form onSubmit={sendKeepingForm(submit)} className="flex flex-col gap-4">
       <FileChooser
         name="fsa_578"
         label="FSA-578"
