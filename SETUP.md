@@ -70,7 +70,7 @@ One-page decision records go in `docs/decisions/` (Phase 0 requirement). Written
 | Reading tickets and forms | Claude API with structured outputs (JSON schema) | Azure Document Intelligence, AWS Textract | Handles handwriting and messy layouts; one service for tickets, FSA-578, Summary of Coverage, settlements |
 | Confidence per value | Arithmetic checks + a second independent read, not the model's self-rating | Model self-reported confidence | Research shows self-reported confidence is poorly calibrated |
 | Map | MapLibre + Terra Draw + Turf.js, Esri or USGS NAIP satellite imagery | Mapbox / Google Maps | Free, no API key |
-| Location | The browser's location, read once when the farmer taps "Start harvesting"; ticket times; photo GPS and time (exifr) as proof of capture | Native app GPS | No phone app at this stage, and a web app can't track location in the background |
+| Location | The browser's location, read once when the farmer clicks "Start harvesting"; ticket times; photo GPS and time (exifr) as proof of capture | Native app GPS | No phone app at this stage, and a web app can't track location in the background |
 | PDF | Playwright printing the agent-view page | WeasyPrint | PDF matches the web page exactly |
 | Roles | Farmer / Agent switcher (drivers don't use the app) | Supabase Auth logins | This stage only needs to switch views |
 | Tests | Vitest | pytest | Same language as the app |

@@ -249,7 +249,7 @@ The phases cover the whole product. The order this stage is built in, step by st
 
 ### Phase 2: Farm map
 - Import a field file (GeoJSON from farmers.gov). Fields show as translucent, clickable outlines over satellite imagery.
-- AI-proposed outlines: the farmer uploads a photo of his FSA map and taps roughly where the farm is. GrainClaim loads public field outlines nearby (USDA Crop Sequence Boundaries), and Claude reads the FSA map's field numbers and acres and pairs them with those outlines. A map photo has no coordinates, so the public outlines are what place it.
+- AI-proposed outlines: the farmer uploads a photo of his FSA map and clicks roughly where the farm is. GrainClaim loads public field outlines nearby (USDA Crop Sequence Boundaries), and Claude reads the FSA map's field numbers and acres and pairs them with those outlines. A map photo has no coordinates, so the public outlines are what place it.
 - The farmer adjusts any outline or draws a missing one (Terra Draw): corners and edges only, never moving a whole field, keeping at least 90% overlap with the original. The original is kept. Nothing is used until he confirms it; acres are recalculated from the confirmed outline.
 - Show FSA numbers, mapped acres and legal description.
 - Shape checks: overlaps, broken outlines.
@@ -376,15 +376,15 @@ The farmer gives the minimum and gets answers on demand.
 | New load | Clicks "New load" for each truck, in the field or at a bin (changes the truck or where it's going only if they differ from last time) | Links the load to the harvest log entry or the bin; finishes a load into a bin at once; keeps a load to a buyer open for its ticket |
 | Ticket | Photographs or uploads it, whenever | Reads it, checks it, links it to its open load and finishes the load, calculates bushels |
 | Settlement | Photographs or uploads it | Matches tickets and flags missing loads |
-| Report | Reviews it and taps Approve | Locks the report and shares it with the agent |
+| Report | Reviews it and clicks Approve | Locks the report and shares it with the agent |
 
-**Select on the map; draw only to fix.** Fields appear as translucent, clickable outlines over satellite imagery. The farmer taps a field to select it or see its details. Outlines come from the farmers.gov file or are proposed by AI from his FSA map; he adjusts or draws one only when it's wrong or missing. He can reshape an outline but not move it.
+**Select on the map; draw only to fix.** Fields appear as translucent, clickable outlines over satellite imagery. The farmer clicks a field to select it or see its details. Outlines come from the farmers.gov file or are proposed by AI from his FSA map; he adjusts or draws one only when it's wrong or missing. He can reshape an outline but not move it.
 
 **Defaults everywhere.** Pre-fill the most likely answer: the field he's standing in, the truck's last destination, truck capacity. The farmer changes only what's wrong.
 
-**Confirm, don't type.** Read values appear beside the photo. The farmer taps "Looks right" or flags one value. Only low-confidence values are highlighted. The load a ticket finishes is pre-selected the same way; he can change it, and the app's suggestion is kept beside his choice.
+**Confirm, don't type.** Read values appear beside the photo. The farmer clicks "Looks right" or flags one value. Only low-confidence values are highlighted. The load a ticket finishes is pre-selected the same way; he can change it, and the app's suggestion is kept beside his choice.
 
-**Show only what needs action.** The farmer's home screen is the Needs attention list, the season totals and the farm map. Details (the record chain, the math behind a number) open on tap.
+**Show only what needs action.** The farmer's home screen is the Needs attention list, the season totals and the farm map. Details (the record chain, the math behind a number) open on a click.
 
 **Answers on the map and in one list.** The farm map shows where the season stands: each bin's percent full, each field's harvest so far (ticketed and still in bins) against its expected harvest, and the confirmed coverage (units, shares, guarantees). The ticket log is one list of every ticket: a short summary above it, each row showing the ticket's moisture, test weight and bushels and the field or bin it came from, and each row opening in place.
 
