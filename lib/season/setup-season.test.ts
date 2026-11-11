@@ -3,6 +3,7 @@ import documents from "../../sample-data/documents-2026.json";
 import { loadSampleFiles } from "../../scripts/seed/sample-files";
 import { fsa578ReadSchema, type Fsa578Read } from "../extract/fsa-578-schema";
 import type { ReadResult } from "../extract/read";
+import type { SeenKind } from "../rules/document-kind";
 import { summaryOfCoverageReadSchema, type SummaryOfCoverageRead } from "../extract/summary-of-coverage-schema";
 import { sha256Hex, type CaptureInfo } from "../photos/photo-file";
 import type { MappedField } from "../rules/season-setup";
@@ -37,6 +38,8 @@ const [NORTH, SOUTH] = FIELDS;
 const FSA_PHOTO = new Uint8Array([0xff, 0xd8, 0xff, 1]);
 const COVERAGE_PDF = new TextEncoder().encode("%PDF-1.7 summary");
 const FILES = { fsa578: FSA_PHOTO, coverage: COVERAGE_PDF };
+/** A photo of the FSA map: a different document, which doesn't belong in either slot. */
+const MAP_PHOTO = new Uint8Array([0xff, 0xd8, 0xff, 9]);
 const NOW = new Date("2026-06-15T15:00:00Z");
 const CAPTURE: CaptureInfo = { capturedAt: "2026-06-15T09:58:00-05:00", location: { longitude: -93.43, latitude: 42.093 } };
 
@@ -153,20 +156,34 @@ const readFailed = <T,>(): ReadResult<T> => ({
   usage: { input_tokens: 8000, output_tokens: 16000 },
 });
 
-function setup(
-  options: Parameters<typeof fakeStore>[0] & { fsa?: ReadResult<Fsa578Read>; coverage?: ReadResult<SummaryOfCoverageRead> } = {},
-) {
+/** What the reader says of a file that isn't the kind it expects. */
+const readWrongKind = <T,>(wrongKind: SeenKind): ReadResult<T> => ({
+  ok: false,
+  reason: `The file is ${wrongKind}.`,
+  wrongKind,
+  model: "haiku",
+  effort: "medium",
+  seconds: 3,
+  usage: { input_tokens: 8000, output_tokens: 60 },
+});
+
+/** A reader's answer, the same for every file or worked out from the file it is handed. */
+type Reads<T> = ReadResult<T> | ((file: Uint8Array) => ReadResult<T>);
+const answerFor = <T,>(reads: Reads<T> | undefined, file: Uint8Array, otherwise: T): ReadResult<T> =>
+  typeof reads === "function" ? reads(file) : (reads ?? readOk(otherwise));
+
+function setup(options: Parameters<typeof fakeStore>[0] & { fsa?: Reads<Fsa578Read>; coverage?: Reads<SummaryOfCoverageRead> } = {}) {
   const { store, saved } = fakeStore(options);
   const reads = { fsa578: 0, coverage: 0, captureInfo: 0 };
   const deps: SeasonSetupDeps = {
     store,
-    readFsa578: async () => {
+    readFsa578: async (file) => {
       reads.fsa578 += 1;
-      return options.fsa ?? readOk(FSA);
+      return answerFor(options.fsa, file, FSA);
     },
-    readSummaryOfCoverage: async () => {
+    readSummaryOfCoverage: async (file) => {
       reads.coverage += 1;
-      return options.coverage ?? readOk(COVERAGE);
+      return answerFor(options.coverage, file, COVERAGE);
     },
     captureInfo: async () => {
       reads.captureInfo += 1;
@@ -261,7 +278,8 @@ describe("readSeasonDocuments", () => {
     const context = setup({ fsa: readFailed() });
     expect(await readSeasonDocuments(FILES, "farmer", context.deps)).toEqual({
       status: "not_ready",
-      messages: ["Your FSA-578 couldn't be read. Try a clearer photo, with the whole page flat and in the frame."],
+      messages: [],
+      files: { fsa578: "Your FSA-578 couldn't be read. Try a clearer photo, with the whole page flat and in the frame." },
     });
     // The Summary of Coverage read fine and is kept, so it isn't read again next time.
     expect(context.saved.documents.map((d) => d.kind)).toEqual(["summary_of_coverage"]);
@@ -280,10 +298,11 @@ describe("readSeasonDocuments", () => {
     const text = new TextEncoder().encode("acres.xlsx");
     expect(await readSeasonDocuments({ fsa578: text, coverage: text }, "farmer", context.deps)).toEqual({
       status: "not_ready",
-      messages: [
-        "Your FSA-578 must be a JPEG or PNG photo, or a PDF.",
-        "Your Summary of Coverage must be a PDF, or a JPEG or PNG photo.",
-      ],
+      messages: [],
+      files: {
+        fsa578: "Your FSA-578 must be a JPEG or PNG photo, or a PDF.",
+        coverage: "Your Summary of Coverage must be a PDF, or a JPEG or PNG photo.",
+      },
     });
     expect(context.reads).toEqual({ fsa578: 0, coverage: 0, captureInfo: 0 });
   });
@@ -298,8 +317,19 @@ describe("readSeasonDocuments", () => {
     const other = new Uint8Array([0xff, 0xd8, 0xff, 2]);
     expect(await readSeasonDocuments({ fsa578: COVERAGE_PDF, coverage: other }, "farmer", context.deps)).toMatchObject({
       status: "not_ready",
-      messages: ["The file you chose as your FSA-578 was added before as your Summary of Coverage. Choose your FSA-578."],
+      messages: [],
+      files: { fsa578: "This file was added before as your Summary of Coverage. Choose your FSA-578." },
     });
+  });
+
+  it("names the kind a file was added before as, whatever kind that is", async () => {
+    const context = setup();
+    // The FSA map, added on the farm map, then chosen here as the FSA-578.
+    context.saved.documents.push({ id: "doc-map", kind: "fsa_map", file_sha256: sha256Hex(MAP_PHOTO) } as never);
+    expect(await readSeasonDocuments({ fsa578: MAP_PHOTO, coverage: COVERAGE_PDF }, "farmer", context.deps)).toMatchObject({
+      files: { fsa578: "This file was added before as your FSA map. Choose your FSA-578." },
+    });
+    expect(context.reads.fsa578).toBe(0);
   });
 
   it("is the farmer's job, and needs a farm", async () => {
@@ -313,6 +343,73 @@ describe("readSeasonDocuments", () => {
       status: "not_ready",
       messages: ["Your farm isn't set up yet, so there are no fields to set a season up for."],
     });
+  });
+});
+
+describe("readSeasonDocuments: a file that isn't the kind its slot is for", () => {
+  /** The FSA-578 reader, handed the FSA map photo, says it is an FSA map; any other file reads as the sample FSA-578. */
+  const mapIsAMap = (file: Uint8Array) => (sha256Hex(file) === sha256Hex(MAP_PHOTO) ? readWrongKind<Fsa578Read>("fsa_map") : readOk(FSA));
+  const mapAsFsa578 = { fsa578: MAP_PHOTO, coverage: COVERAGE_PDF };
+
+  it("reads the right kinds as before", async () => {
+    const context = setup({ fsa: mapIsAMap });
+    expect((await ready(context)).documents).toEqual({ fsa578Id: "doc-fsa", coverageId: "doc-coverage" });
+  });
+
+  it("refuses an FSA map chosen as the FSA-578, by name, in that file's slot", async () => {
+    const context = setup({ fsa: mapIsAMap });
+    expect(await readSeasonDocuments(mapAsFsa578, "farmer", context.deps)).toEqual({
+      status: "not_ready",
+      messages: [],
+      files: { fsa578: "This looks like an FSA map, not an FSA-578. Choose your FSA-578." },
+    });
+  });
+
+  it("saves nothing of the refused file: no file, no document row, and it isn't remembered", async () => {
+    const context = setup({ fsa: mapIsAMap });
+    await readSeasonDocuments(mapAsFsa578, "farmer", context.deps);
+
+    const mapHash = sha256Hex(MAP_PHOTO);
+    expect(context.saved.files.some((file) => file.path.includes(mapHash))).toBe(false);
+    expect(context.saved.documents.some((document) => document.file_sha256 === mapHash)).toBe(false);
+    expect(await context.deps.store.findDocumentByHash(mapHash)).toBeNull();
+    expect([context.saved.policies, context.saved.units, context.saved.fieldSeasons, context.saved.flags]).toEqual([[], [], [], []]);
+    // Its capture time and GPS weren't even looked at.
+    expect(context.reads.captureInfo).toBe(0);
+  });
+
+  it("keeps the right-kind file in the other slot, so a second try doesn't read it again", async () => {
+    const context = setup({ fsa: mapIsAMap });
+    await readSeasonDocuments(mapAsFsa578, "farmer", context.deps);
+    expect(context.saved.documents.map((d) => d.kind)).toEqual(["summary_of_coverage"]);
+
+    // He replaces only the wrong file and reads again.
+    const second = await readSeasonDocuments(FILES, "farmer", context.deps);
+    expect(second).toMatchObject({ status: "ready", documents: { fsa578Id: "doc-fsa", coverageId: "doc-coverage" } });
+    expect(context.saved.documents.map((d) => d.kind).sort()).toEqual(["fsa_578", "summary_of_coverage"]);
+    expect(context.reads).toMatchObject({ fsa578: 2, coverage: 1 });
+  });
+
+  it("refuses each of two wrong files in its own slot, and saves nothing at all", async () => {
+    const context = setup({ fsa: readWrongKind("scale_ticket"), coverage: readWrongKind("fsa_578") });
+    expect(await readSeasonDocuments(FILES, "farmer", context.deps)).toEqual({
+      status: "not_ready",
+      messages: [],
+      files: {
+        fsa578: "This looks like a scale ticket, not an FSA-578. Choose your FSA-578.",
+        coverage: "This looks like an FSA-578, not a Summary of Coverage. Choose your Summary of Coverage.",
+      },
+    });
+    expect(context.saved.files).toEqual([]);
+    expect(context.saved.documents).toEqual([]);
+  });
+
+  it("refuses a file that is none of the kinds, without guessing a name for it", async () => {
+    const context = setup({ coverage: readWrongKind("other") });
+    expect(await readSeasonDocuments(FILES, "farmer", context.deps)).toMatchObject({
+      files: { coverage: "This doesn't look like a Summary of Coverage. Choose your Summary of Coverage." },
+    });
+    expect(context.saved.documents.map((d) => d.kind)).toEqual(["fsa_578"]);
   });
 });
 

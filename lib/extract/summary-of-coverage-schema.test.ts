@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { documentsOfKind, loadDocumentsFile } from "../../scripts/print/documents-file";
-import { validateSummaryOfCoverage } from "./read-summary-of-coverage";
+import { readSummaryOfCoverage, validateSummaryOfCoverage } from "./read-summary-of-coverage";
 import {
   fromSummaryOfCoverageWire,
   summaryOfCoverageReadSchema,
@@ -9,7 +9,7 @@ import {
   type SummaryOfCoverageRead,
   type SummaryOfCoverageWire,
 } from "./summary-of-coverage-schema";
-import { sentValues } from "./wire-schema-testing";
+import { describeKindCheck, sentValues } from "./wire-schema-testing";
 
 const KEY = documentsOfKind(loadDocumentsFile(), "summary_of_coverage")[0][1].values;
 /** The answer key as a read: the same values, with the practice held to the app's choices. */
@@ -174,4 +174,12 @@ describe("the Summary of Coverage's values by name", () => {
       new Map(summaryOfCoverageValues(summary).map((v) => [v.label, v.value]));
     expect(byLabel(reversed)).toEqual(byLabel(READ));
   });
+});
+
+describeKindCheck({
+  name: "readSummaryOfCoverage",
+  expects: "summary_of_coverage",
+  read: readSummaryOfCoverage,
+  wire: WIRE,
+  values: KEY,
 });

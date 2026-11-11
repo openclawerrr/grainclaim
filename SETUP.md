@@ -60,7 +60,7 @@ Rules the database enforces on its own:
 
 ### Stack decisions (summary)
 
-One-page decision records go in `docs/decisions/` (Phase 0 requirement). Written so far: [which model reads documents](docs/decisions/document-reading-model.md) and [how a load is recorded and finished](docs/decisions/loads.md). The rest still need writing.
+One-page decision records go in `docs/decisions/` (Phase 0 requirement). Written so far: [which model reads documents](docs/decisions/document-reading-model.md), [how a load is recorded and finished](docs/decisions/loads.md) and [how a reader notices the wrong kind of document](docs/decisions/wrong-document.md). The rest still need writing.
 
 | Need | Choice | Main alternative | Why |
 |---|---|---|---|

@@ -31,9 +31,9 @@ ${COPYING_RULES}
 export type SummaryOfCoverageReadResult = ReadResult<SummaryOfCoverageRead>;
 
 /**
- * Sends the summary as it is and returns the values read from it. A read the
- * model refused, cut short or returned in the wrong shape comes back as
- * `ok: false`. Errors from the API itself are thrown.
+ * Sends the summary as it is and returns the values read from it. A file that
+ * isn't this kind of document, and a read the model refused, cut short or
+ * returned in the wrong shape, come back as `ok: false`. Errors from the API itself are thrown.
  */
 export async function readSummaryOfCoverage(
   file: Uint8Array,
@@ -41,6 +41,7 @@ export async function readSummaryOfCoverage(
 ): Promise<SummaryOfCoverageReadResult> {
   return readWithClaude(
     {
+      expects: "summary_of_coverage",
       system: SYSTEM_PROMPT,
       file: photoOrPdfBlock(file, "A Summary of Coverage"),
       instruction: "Read this Summary of Coverage.",

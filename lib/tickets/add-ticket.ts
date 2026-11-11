@@ -6,6 +6,8 @@
  *   the photo → trip → ticket
  *
  * Nothing is written until the read has succeeded and every link is known.
+ * The reader also says what kind of document the photo is, and a photo that
+ * isn't a scale ticket is refused by name.
  * The photo is stored first: it is named by its hash, so storing the same
  * bytes again changes nothing and a retry is always safe. If the ticket can't
  * be saved after its trip was, the trip is removed.
@@ -19,6 +21,7 @@ import type { TicketReadResult } from "../extract/read-ticket";
 import { OTHER_PRINTED_FIELDS, PART_2_FIELDS, type TicketRead } from "../extract/ticket-schema";
 import { photoType, sha256Hex, ticketPhotoPath, type CaptureInfo, type PhotoType } from "../photos/photo-file";
 import type { Role } from "../role/role";
+import { wrongKindMessage } from "../rules/document-kind";
 import { RuleInputError } from "../rules/errors";
 import { originOfLoad } from "../rules/load-origin";
 import { CALC_VERSION, ticketBushels, type TicketBushels } from "../rules/ticket-bushels";
@@ -183,6 +186,8 @@ export async function addTicket(photo: Uint8Array, who: Role, deps: AddTicketDep
 
   const read = await deps.read(photo);
   if (!read.ok) {
+    // Not a scale ticket (a settlement, say): nothing of it is saved.
+    if (read.wrongKind) return notSaved(wrongKindMessage("scale_ticket", read.wrongKind), read.reason);
     return notSaved("The ticket couldn't be read, so nothing was saved. Try again, or use a clearer photo.", read.reason);
   }
   const values = read.values;

@@ -26,13 +26,14 @@ ${COPYING_RULES}
 export type Fsa578ReadResult = ReadResult<Fsa578Read>;
 
 /**
- * Sends the form as it is and returns the values read from it. A read the
- * model refused, cut short or returned in the wrong shape comes back as
- * `ok: false`. Errors from the API itself are thrown.
+ * Sends the form as it is and returns the values read from it. A file that
+ * isn't this kind of document, and a read the model refused, cut short or
+ * returned in the wrong shape, come back as `ok: false`. Errors from the API itself are thrown.
  */
 export async function readFsa578(file: Uint8Array, options: ReadOptions): Promise<Fsa578ReadResult> {
   return readWithClaude(
     {
+      expects: "fsa_578",
       system: SYSTEM_PROMPT,
       file: photoOrPdfBlock(file, "An FSA-578"),
       instruction: "Read this FSA-578.",
