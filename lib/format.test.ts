@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   countOf,
+  formatAcres,
   formatBushels,
   formatDate,
   formatDayOf,
@@ -22,6 +23,12 @@ describe("format", () => {
     expect(formatWholeBushels(961.69)).toBe("962");
     expect(formatWholeBushels(5535.2)).toBe("5,535");
     expect(formatWholeBushels(0)).toBe("0");
+  });
+
+  it("shows acres with two decimals, as the FSA-578 prints them", () => {
+    expect(formatAcres(80.2)).toBe("80.20");
+    expect(formatAcres(40)).toBe("40.00");
+    expect(formatAcres(1234.567)).toBe("1,234.57");
   });
 
   it("shows pounds with a thousands separator", () => {

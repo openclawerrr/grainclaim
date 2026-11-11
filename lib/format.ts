@@ -59,3 +59,8 @@ export function formatTime(time: string): string {
 export function countOf(count: number, singular: string, plural = `${singular}s`): string {
   return `${count.toLocaleString("en-US")} ${count === 1 ? singular : plural}`;
 }
+
+/** Acres with two decimals, as the FSA-578 prints them: 80.20. */
+export function formatAcres(acres: number): string {
+  return acres.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}

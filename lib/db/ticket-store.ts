@@ -16,7 +16,7 @@ function fail(doing: string, error: { message: string }): never {
 }
 
 /** Storage answers "already exists" when these exact bytes were stored before. */
-function alreadyStored(error: { message?: string; status?: number; statusCode?: string; code?: string }): boolean {
+export function alreadyStored(error: { message?: string; status?: number; statusCode?: string; code?: string }): boolean {
   return (
     error.code === "ResourceAlreadyExists" ||
     error.status === 409 ||

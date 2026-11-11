@@ -4,14 +4,16 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FarmMapLoading, FarmMapPanel } from "@/components/map/farm-map-panel";
 import { cn } from "@/lib/utils";
+import { NeedsAttention } from "./needs-attention";
 import { SeasonTotals, SeasonTotalsLoading } from "./season-totals";
 
 /**
  * The farmer's home screen: his two actions, the season totals and Needs
  * attention on the left, the farm map on the right (docs/spec.md Part 11,
- * docs/design.md). Add ticket, the unit totals and the map (with adding a
- * bin) are real. The rest is a placeholder until its screen is built; no
- * figure is shown that the database didn't produce.
+ * docs/design.md). Add ticket, the unit totals with their guarantees, open
+ * flags under Needs attention, and the map (with adding a bin) are real.
+ * Start harvesting is a placeholder until its screen is built; no figure is
+ * shown that the database didn't produce.
  */
 export function FarmerHome() {
   return (
@@ -54,9 +56,9 @@ export function FarmerHome() {
             <CardTitle>Needs attention</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-base text-ink-muted">
-              Anything that needs a look will be listed here, each with its fix.
-            </p>
+            <Suspense fallback={<p className="text-base text-ink-muted">Loading…</p>}>
+              <NeedsAttention />
+            </Suspense>
           </CardContent>
         </Card>
       </div>

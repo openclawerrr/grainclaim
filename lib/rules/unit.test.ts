@@ -4,6 +4,7 @@ import {
   guaranteeBushels,
   insuredShareOfProduction,
   shortfallBushels,
+  unitPlantedAcres,
   unitProduction,
   unitYield,
 } from "./unit";
@@ -81,6 +82,32 @@ describe("guaranteeBushels", () => {
     expect(() => guaranteeBushels({ ...UNIT_1, share: 1.5 })).toThrow(RuleInputError);
     expect(() => guaranteeBushels({ ...UNIT_1, acres: -80.2 })).toThrow(RuleInputError);
     expect(() => guaranteeBushels({ ...UNIT_1, approvedYield: -180 })).toThrow(RuleInputError);
+  });
+});
+
+describe("unitPlantedAcres", () => {
+  const fieldSeasons = [
+    { unit_id: "unit-1", crop_year: 2026, planted_acres: 80.2 },
+    { unit_id: "unit-1", crop_year: 2026, planted_acres: 39.8 },
+    { unit_id: "unit-2", crop_year: 2026, planted_acres: 40 },
+    { unit_id: "unit-1", crop_year: 2025, planted_acres: 77 },
+  ];
+
+  it("adds up the unit's fields for one crop year", () => {
+    expect(unitPlantedAcres(fieldSeasons, "unit-1", 2026)).toBeCloseTo(120, 9);
+    expect(unitPlantedAcres(fieldSeasons, "unit-2", 2026)).toBe(40);
+    expect(unitPlantedAcres(fieldSeasons, "unit-1", 2025)).toBe(77);
+  });
+
+  it("is zero for a unit with no fields that year", () => {
+    expect(unitPlantedAcres(fieldSeasons, "unit-3", 2026)).toBe(0);
+    expect(unitPlantedAcres([], "unit-1", 2026)).toBe(0);
+  });
+
+  it("rejects planted acres that aren't a number", () => {
+    expect(() => unitPlantedAcres([{ unit_id: "unit-1", crop_year: 2026, planted_acres: Number.NaN }], "unit-1", 2026)).toThrow(
+      RuleInputError,
+    );
   });
 });
 

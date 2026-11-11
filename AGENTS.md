@@ -16,7 +16,7 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 
 - Next.js (App Router) + TypeScript + Tailwind + shadcn/ui
 - Supabase Postgres with PostGIS. PostGIS lives in the `extensions` schema, so map types are written `extensions.geometry`.
-- Supabase Storage for photos, in the private `photos` bucket, each file named by its SHA-256 hash and real extension (`tickets/<hash>.jpg`)
+- Supabase Storage for photos and documents, in the private `photos` bucket, each file named by its SHA-256 hash and real extension (`tickets/<hash>.jpg`, `documents/<hash>.pdf`)
 - Claude API (`@anthropic-ai/sdk`) with structured outputs for reading tickets and forms; one zod schema per document type
 - MapLibre GL + Turf.js for the map; Terra Draw for adjusting proposed field outlines and drawing missing ones; exifr for GPS and time from photos
 - Vitest for tests
@@ -24,13 +24,14 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 ### Folder layout
 
 - `app/`: screens. `app/api/`: server routes.
-- `components/shell/`: the frame around every screen (top bar, icon rail, role switcher). `components/home/`: the farmer's and agent's home screens. `components/tickets/`: the Add ticket screen. `components/map/`: the farm map on the farmer's home screen, and adding a bin on it. `components/ui/`: shadcn/ui components.
+- `components/shell/`: the frame around every screen (top bar, icon rail, role switcher). `components/home/`: the farmer's and agent's home screens. `components/tickets/`: the Add ticket screen. `components/map/`: the farm map on the farmer's home screen, and adding a bin on it. `components/season/`: the season setup screen. `components/ui/`: shadcn/ui components.
 - `lib/role/`: the two roles. `getCurrentRole()` in `current-role.ts` reads the current role on the server.
 - `lib/rules/`: calculations, matching rules and flags. Pure functions only: plain data in, results out, no database or framework calls. Every function has Vitest tests next to it.
 - `lib/extract/`: document reading, one schema per document type. `read.ts` holds the one Claude API call that every reader uses.
 - `lib/db/`: database queries. `client.ts` holds the one server-only Supabase client.
 - `lib/photos/`: a photo file's type, SHA-256 hash, and EXIF time and GPS
 - `lib/tickets/`: adding a ticket, start to finish (`add-ticket.ts`). The reader and the database are passed in, so its tests never call Claude or Supabase.
+- `lib/season/`: setting up a season from the FSA-578 and Summary of Coverage, start to finish (`setup-season.ts`), built the same way: read and save the documents, then write the season when the farmer confirms. What the season should be, and its flags, is worked out in `lib/rules/season-setup.ts`.
 - `lib/bins/`: adding a bin, start to finish (`add-bin.ts`), built the same way. The database calculates a bin's capacity; `lib/rules/bin-capacity.ts` has the same formula for showing it before the bin is saved.
 - `lib/map/`: small map geometry for screens (where a field's label goes, the area some points cover)
 - `lib/format.ts`: how numbers, dates and times are shown. Calculations never round; screens do.
@@ -53,7 +54,8 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 - Work on a branch. Never commit directly to `main`.
 - Never edit a migration that has already been pushed. Make structure changes in a new file with `npx supabase migration new <name>`. Don't run `npx supabase db push` yourself; say in the pull request that it must be run after merging.
 - The database enforces these rules. Design code to fit them; never work around them:
-  - Ticket photos and read values lock once saved. A wrong value gets a `flag` row with `flag_type = 'misread'`, never an edit.
+  - Ticket photos and read values lock once saved. A wrong value gets a `flag` row with `flag_type = 'misread'`, never an edit. The same goes for a row in `document`, which holds every other kind of document the farmer adds (FSA-578, Summary of Coverage, FSA map): its file and read values lock once saved.
+  - One policy per insured, crop, state, county and crop year. A season is set up once; the app refuses a second.
   - A truck has only one open trip at a time.
   - A photo's SHA-256 hash must be unique.
   - `audit_event` is append-only and filled automatically by triggers.
