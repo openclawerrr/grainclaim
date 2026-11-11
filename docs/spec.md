@@ -197,6 +197,7 @@ A load still open after more than 3 days goes to Needs attention.
 | Acres differ between FSA-578, Summary of Coverage and map | Flag before harvest |
 | Mapped field not on the FSA-578 | Flag possible unreported or uninsured acres |
 | Edited outline overlaps its original by less than 90% | Treat as a new field; flag for the agent |
+| A file that isn't the kind of document its slot is for (an FSA map chosen as the FSA-578, a settlement as a scale ticket) | Refuse it by name before anything is saved, beside the file's chooser; the farmer chooses another there |
 | Low-confidence read | Highlight for review |
 | Duplicate ticket (buyer + number + date) | Flag |
 | Edited photo or screenshot | Flag |

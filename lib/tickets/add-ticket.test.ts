@@ -3,6 +3,7 @@ import documents from "../../sample-data/documents-2026.json";
 import type { TicketReadResult } from "../extract/read-ticket";
 import { ticketReadSchema, type TicketRead } from "../extract/ticket-schema";
 import { sha256Hex, type CaptureInfo } from "../photos/photo-file";
+import type { SeenKind } from "../rules/document-kind";
 import type { TicketCheck } from "../rules/ticket-checks";
 import type { SavedTicketIdentity } from "../rules/ticket-matching";
 import {
@@ -101,7 +102,25 @@ function reads(values: TicketRead | null) {
   return { read, calls: () => calls };
 }
 
-function deps(db: ReturnType<typeof fakeStore>, reader: ReturnType<typeof reads>): AddTicketDeps {
+/** A reader that says the photo isn't a scale ticket, and what it is. */
+function readsWrongKind(wrongKind: SeenKind) {
+  let calls = 0;
+  const read = async (): Promise<TicketReadResult> => {
+    calls += 1;
+    return {
+      model: "sonnet",
+      effort: "medium",
+      seconds: 2.1,
+      usage: { input_tokens: 8300, output_tokens: 60 },
+      ok: false,
+      reason: `The file is ${wrongKind}, not a scale ticket.`,
+      wrongKind,
+    };
+  };
+  return { read, calls: () => calls };
+}
+
+function deps(db: ReturnType<typeof fakeStore>, reader: { read: AddTicketDeps["read"] }): AddTicketDeps {
   return { store: db.store, read: reader.read, captureInfo: async () => CAPTURE, now: () => NOW };
 }
 
@@ -353,6 +372,39 @@ describe("addTicket: nothing is saved when", () => {
     expect(outcome.message).toBe(
       "North 80 has no season set up yet, so this ticket can't be linked to a unit. Nothing was saved.",
     );
+  });
+});
+
+describe("addTicket: a photo that isn't a scale ticket", () => {
+  const SETTLEMENT_PHOTO = jpeg(8);
+
+  it.each([
+    ["settlement", "This looks like a settlement, not a scale ticket. Choose a photo of the ticket."],
+    ["fsa_map", "This looks like an FSA map, not a scale ticket. Choose a photo of the ticket."],
+    ["fsa_578", "This looks like an FSA-578, not a scale ticket. Choose a photo of the ticket."],
+    ["summary_of_coverage", "This looks like a Summary of Coverage, not a scale ticket. Choose a photo of the ticket."],
+    ["other", "This doesn't look like a scale ticket. Choose a photo of the ticket."],
+  ] as const)("is refused by name when it is named as %s, and nothing is saved", async (kind, sentence) => {
+    const db = fakeStore();
+    const outcome = await addTicket(SETTLEMENT_PHOTO, "farmer", deps(db, readsWrongKind(kind)));
+    expect(outcome).toEqual({ status: "not_saved", message: sentence, detail: `The file is ${kind}, not a scale ticket.` });
+    expect(db.photos.size).toBe(0);
+    expect(db.trips).toEqual([]);
+    expect(db.tickets).toEqual([]);
+  });
+
+  it("isn't remembered: a second try with the ticket works, and the refused photo can be tried again", async () => {
+    const db = fakeStore();
+    await addTicket(SETTLEMENT_PHOTO, "farmer", deps(db, readsWrongKind("settlement")));
+    expect(await db.store.findTicketByHash(sha256Hex(SETTLEMENT_PHOTO))).toBeNull();
+
+    expect(await addTicket(PHOTO, "farmer", deps(db, reads(TICKET_1)))).toEqual({ status: "saved", ticketId: "ticket-1" });
+    expect(db.tickets.map((ticket) => ticket.photo_sha256)).toEqual([sha256Hex(PHOTO)]);
+
+    // Chosen again, the refused photo is read again, not answered from memory.
+    const again = readsWrongKind("settlement");
+    expect(await addTicket(SETTLEMENT_PHOTO, "farmer", deps(db, again))).toMatchObject({ status: "not_saved" });
+    expect(again.calls()).toBe(1);
   });
 });
 

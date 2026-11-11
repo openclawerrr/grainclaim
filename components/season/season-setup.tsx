@@ -93,8 +93,8 @@ function SetUpOnce({ onStartOver }: { onStartOver: () => void }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ChooseDocuments submit={submitRead} reading={reading} />
-          {read.status === "problem" && !reading ? (
+          <ChooseDocuments submit={submitRead} reading={reading} read={read} />
+          {read.status === "problem" && read.messages.length > 0 && !reading ? (
             <div className="mt-4">
               <Problems messages={read.messages} />
             </div>
@@ -121,12 +121,37 @@ function Problems({ messages }: { messages: string[] }) {
   );
 }
 
+const NOT_REPLACED = { fsa578: false, coverage: false };
+
 /**
  * The two file choosers. After a read that fails, both keep their files, so only the wrong one needs replacing:
  * the form is sent from onSubmit, because React empties a form sent through its `action` prop.
+ *
+ * What is wrong with one file (it is the wrong kind of document, say) shows under that file's chooser, and goes
+ * away when he chooses another file there. He then reads again, right here.
  */
-function ChooseDocuments({ submit, reading }: { submit: (formData: FormData) => void; reading: boolean }) {
+function ChooseDocuments({
+  submit,
+  reading,
+  read,
+}: {
+  submit: (formData: FormData) => void;
+  reading: boolean;
+  read: ReadSeasonState;
+}) {
   const [names, setNames] = useState<{ fsa578: string | null; coverage: string | null }>({ fsa578: null, coverage: null });
+  // Which files he has replaced since the last read came back: a replaced file's message no longer applies.
+  const [replaced, setReplaced] = useState(NOT_REPLACED);
+  const [answered, setAnswered] = useState(read);
+  if (answered !== read) {
+    setAnswered(read);
+    setReplaced(NOT_REPLACED);
+  }
+  const problems = read.status === "problem" && !reading ? (read.files ?? {}) : {};
+  const choose = (slot: "fsa578" | "coverage") => (name: string | null) => {
+    setNames((current) => ({ ...current, [slot]: name }));
+    setReplaced((current) => ({ ...current, [slot]: true }));
+  };
   return (
     <form onSubmit={sendKeepingForm(submit)} className="flex flex-col gap-4">
       <FileChooser
@@ -135,8 +160,9 @@ function ChooseDocuments({ submit, reading }: { submit: (formData: FormData) => 
         hint="A photo of the printed form, or its PDF."
         accept="image/jpeg,image/png,application/pdf"
         chosen={names.fsa578}
+        problem={replaced.fsa578 ? undefined : problems.fsa578}
         disabled={reading}
-        onChoose={(name) => setNames((current) => ({ ...current, fsa578: name }))}
+        onChoose={choose("fsa578")}
       />
       <FileChooser
         name="summary_of_coverage"
@@ -144,8 +170,9 @@ function ChooseDocuments({ submit, reading }: { submit: (formData: FormData) => 
         hint="The PDF from your agent, or a photo of it."
         accept="application/pdf,image/jpeg,image/png"
         chosen={names.coverage}
+        problem={replaced.coverage ? undefined : problems.coverage}
         disabled={reading}
-        onChoose={(name) => setNames((current) => ({ ...current, coverage: name }))}
+        onChoose={choose("coverage")}
       />
       <Button type="submit" disabled={!names.fsa578 || !names.coverage || reading} className="h-14 rounded-xl text-base font-semibold">
         {reading ? "Reading your documents…" : "Read documents"}
@@ -161,6 +188,7 @@ function FileChooser({
   hint,
   accept,
   chosen,
+  problem,
   disabled,
   onChoose,
 }: {
@@ -169,6 +197,8 @@ function FileChooser({
   hint: string;
   accept: string;
   chosen: string | null;
+  /** One sentence saying why this file can't be used, and what to choose. */
+  problem?: string;
   disabled: boolean;
   onChoose: (fileName: string | null) => void;
 }) {
@@ -193,6 +223,11 @@ function FileChooser({
         />
       </label>
       <p className="truncate text-sm text-ink-muted">{chosen ?? hint}</p>
+      {problem ? (
+        <p role="alert" className="mt-1 rounded-xl bg-yellow-100 px-4 py-3 text-base text-ink">
+          {problem}
+        </p>
+      ) : null}
     </div>
   );
 }

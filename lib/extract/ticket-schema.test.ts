@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { documentsOfKind, loadDocumentsFile } from "../../scripts/print/documents-file";
-import { validateRead } from "./read-ticket";
+import { readTicket, validateRead } from "./read-ticket";
 import {
   fromWire,
   OTHER_PRINTED_FIELDS,
@@ -11,6 +11,7 @@ import {
   ticketWireSchema,
   type TicketWire,
 } from "./ticket-schema";
+import { describeKindCheck } from "./wire-schema-testing";
 
 // SAMPLE ticket 3 as Claude would return it.
 const WIRE: TicketWire = {
@@ -124,4 +125,12 @@ describe("what Claude fills in", () => {
     const read = validateRead(fromWire({ ...WIRE, driver_on: "off", weigher: " KL " }));
     expect(read.ok && read.values).toMatchObject({ driver_on: false, weigher: "KL" });
   });
+});
+
+describeKindCheck({
+  name: "readTicket",
+  expects: "scale_ticket",
+  read: readTicket,
+  wire: WIRE,
+  values: loadDocumentsFile().documents["ticket-3"].values,
 });

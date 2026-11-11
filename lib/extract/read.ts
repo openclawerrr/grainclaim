@@ -1,7 +1,11 @@
 /**
  * One read of one document with Claude structured outputs. Every reader
- * (ticket, FSA-578, Summary of Coverage) sends its own prompt and schema
- * through `readWithClaude`.
+ * (ticket, FSA-578, Summary of Coverage, FSA map) sends its own prompt and
+ * schema through `readWithClaude`, and says which kind of document it expects.
+ *
+ * In the same read, Claude also says what the document is (`document_kind`).
+ * A file that isn't the expected kind comes back as a failed read that names
+ * the kind it is, so nothing is saved from it and the farmer can be told.
  *
  * Server-side only: the Anthropic client takes ANTHROPIC_API_KEY from the
  * environment. Never import this from a client component.
@@ -11,7 +15,8 @@
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import type { z } from "zod";
+import { z } from "zod";
+import { aDocumentOfKind, SEEN_KINDS, type DocumentKindName, type SeenKind } from "../rules/document-kind";
 import { READ_MODELS, type ReadModelKey, type ReadUsage } from "./models";
 
 export type ReadEffort = "low" | "medium" | "high";
@@ -20,14 +25,23 @@ export const DEFAULT_READ_EFFORT: ReadEffort = "medium";
 /** Values that fit the app's schema, or one sentence saying why they don't. */
 export type Validated<T> = { ok: true; values: T } | { ok: false; reason: string };
 
+/** A read that gave no values. */
+export interface ReadFailure {
+  ok: false;
+  /** One sentence saying why, for the server log and the command line. */
+  reason: string;
+  /** Set when the file isn't the kind of document the reader expects: what Claude says it is. */
+  wrongKind?: SeenKind;
+}
+
 export type ReadResult<T> = {
   model: ReadModelKey;
   effort: ReadEffort;
   /** How long the read took. */
   seconds: number;
-  /** Tokens billed. Zero when the answer came back but wasn't the JSON the schema asks for. */
+  /** Tokens billed. */
   usage: ReadUsage;
-} & Validated<T>;
+} & ({ ok: true; values: T } | ReadFailure);
 
 export interface ReadOptions {
   model: ReadModelKey;
@@ -79,7 +93,9 @@ export function photoOrPdfBlock(file: Uint8Array, what: string): FileBlock {
   return photoBlock(file, what);
 }
 
-export interface ReadRequest<Wire extends z.ZodType, T> {
+export interface ReadRequest<Wire extends z.ZodObject, T> {
+  /** The kind of document this reader reads. A file of any other kind is not read. */
+  expects: DocumentKindName;
   system: string;
   file: FileBlock;
   /** What to do with the file, such as "Read this scale ticket." */
@@ -90,58 +106,136 @@ export interface ReadRequest<Wire extends z.ZodType, T> {
   toValues: (wire: z.infer<Wire>) => Validated<T>;
 }
 
+// ---------------------------------------------------------------------------
+// What the document is
+// ---------------------------------------------------------------------------
+
+/** The value Claude fills in first: what the document is. Sent with every reader's schema. */
+export const KIND_VALUE = "document_kind";
+
 /**
- * Sends the file and returns the values read from it. A read the model
- * refused, cut short or returned in the wrong shape comes back as
- * `ok: false`. Errors from the API itself (a bad key, a rate limit, no
- * network) are thrown.
+ * The kind, as Claude is asked for it. Everything the model is told about it
+ * is here, in the value's own description, and nothing is added to a reader's
+ * prompt: the prompt a reader was measured with is the prompt it sends.
+ *
+ * The SDK sends a list of choices inside the description, as it does for
+ * every list of choices in the readers' schemas, and the answer is held to
+ * the list here.
  */
-export async function readWithClaude<Wire extends z.ZodType, T>(
+function seenKindSchema(expected: DocumentKindName) {
+  return z.enum(SEEN_KINDS).describe(
+    [
+      `What kind of document the file is. Decide this first, before you read any other value. Go by what the document itself is, not by what you were asked to read. A photo, a scan or a copy of a document, or one marked as a sample, is still that kind of document. If it is not ${aDocumentOfKind(expected)}, don't read it as one: leave every other value empty (null for a number or a date, "" for text, the "not there" choice for a value picked from a list, and no rows in a table).`,
+      "Answer with exactly one of these names.",
+      "fsa_578: an FSA-578, the Farm Service Agency's Report of Acreage. A form that lists a farm's tracts and fields with the crop, acres and producer shares reported on each.",
+      "summary_of_coverage: a crop insurance Summary of Coverage (also called a Schedule of Insurance), from an insurance company. It lists a policy's crops, units, acres, guarantees and premium.",
+      "fsa_map: a Farm Service Agency map of a farm. An aerial photo with field outlines drawn on it, each labeled with a field number and acres.",
+      "scale_ticket: a grain scale ticket for one truckload, with its gross, tare and net weights.",
+      "settlement: a grain settlement sheet from a buyer. It lists several scale tickets with their bushels, a price, deductions and a net payment.",
+      "other: anything else, or a file too unclear to tell.",
+    ].join("\n"),
+  );
+}
+
+/** A reader's schema with the kind as its first value, so it is decided before anything is read. */
+function withKind(wireSchema: z.ZodObject, expected: DocumentKindName) {
+  return z.object({ [KIND_VALUE]: seenKindSchema(expected), ...wireSchema.shape });
+}
+
+const isSeenKind = (value: unknown): value is SeenKind => (SEEN_KINDS as readonly unknown[]).includes(value);
+const OPENS_WITH_KIND = new RegExp(`^\\s*\\{\\s*"${KIND_VALUE}"\\s*:\\s*"([^"]*)"`);
+
+/**
+ * The kind an answer names, or null when it names none. The kind is the
+ * answer's first value, so it is found even in an answer that was cut off.
+ * A name that isn't on the list is "other": the model called the document
+ * something GrainClaim doesn't read.
+ */
+export function kindNamedIn(answer: string): SeenKind | null {
+  let named: unknown;
+  try {
+    const parsed: unknown = JSON.parse(answer);
+    named = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>)[KIND_VALUE] : undefined;
+  } catch {
+    named = OPENS_WITH_KIND.exec(answer)?.[1];
+  }
+  if (typeof named !== "string") return null;
+  return isSeenKind(named) ? named : "other";
+}
+
+function wrongKindReason(expected: DocumentKindName, seen: SeenKind): string {
+  if (seen === "other") return `The file is not ${aDocumentOfKind(expected)}, or any other kind of document GrainClaim reads.`;
+  return `The file is ${aDocumentOfKind(seen)}, not ${aDocumentOfKind(expected)}.`;
+}
+
+// ---------------------------------------------------------------------------
+// The read
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends the file and returns the values read from it. A file that isn't the
+ * expected kind of document, and a read the model refused, cut short or
+ * returned in the wrong shape, come back as `ok: false`. Errors from the API
+ * itself (a bad key, a rate limit, no network) are thrown.
+ *
+ * The kind is looked at before anything else in the answer, so a file of the
+ * wrong kind is always reported as that and never as a read that failed.
+ */
+export async function readWithClaude<Wire extends z.ZodObject, T>(
   request: ReadRequest<Wire, T>,
   options: ReadOptions,
 ): Promise<ReadResult<T>> {
   const { model, effort = DEFAULT_READ_EFFORT } = options;
   const client = options.client ?? readerClient();
   const started = performance.now();
-  const base = () => ({ model, effort, seconds: (performance.now() - started) / 1000 });
+  const answerSchema = withKind(request.wireSchema, request.expects);
 
-  let message;
-  try {
-    message = await client.messages.parse({
-      model: READ_MODELS[model].id,
-      max_tokens: 16000,
-      system: request.system,
-      output_config: { effort, format: zodOutputFormat(request.wireSchema) },
-      messages: [{ role: "user", content: [request.file, { type: "text", text: request.instruction }] }],
-    });
-  } catch (error) {
-    // The API answered, but not with JSON that fits the schema.
-    if (error instanceof Anthropic.AnthropicError && !(error instanceof Anthropic.APIError)) {
-      return {
-        ...base(),
-        usage: { input_tokens: 0, output_tokens: 0 },
-        ok: false,
-        reason: firstLine(error.message),
-      };
-    }
-    throw error;
-  }
+  const message = await client.messages.create({
+    model: READ_MODELS[model].id,
+    max_tokens: 16000,
+    system: request.system,
+    output_config: { effort, format: zodOutputFormat(answerSchema) },
+    messages: [{ role: "user", content: [request.file, { type: "text", text: request.instruction }] }],
+  });
 
   const result = {
-    ...base(),
+    model,
+    effort,
+    seconds: (performance.now() - started) / 1000,
     usage: { input_tokens: message.usage.input_tokens, output_tokens: message.usage.output_tokens },
   };
+  const failed = (reason: string): ReadResult<T> => ({ ...result, ok: false, reason });
+  const answer = message.content.find((block): block is Anthropic.TextBlock => block.type === "text")?.text ?? null;
+
+  // First, what the document is.
+  const seen = answer === null ? null : kindNamedIn(answer);
+  if (seen !== null && seen !== request.expects) {
+    return { ...result, ok: false, reason: wrongKindReason(request.expects, seen), wrongKind: seen };
+  }
+
   if (message.stop_reason === "refusal") {
     const category = message.stop_details?.category;
-    return { ...result, ok: false, reason: `The model declined to read the document${category ? ` (${category})` : ""}.` };
+    return failed(`The model declined to read the document${category ? ` (${category})` : ""}.`);
   }
-  if (message.stop_reason === "max_tokens") {
-    return { ...result, ok: false, reason: "The answer was cut off before it finished." };
+  if (message.stop_reason === "max_tokens") return failed("The answer was cut off before it finished.");
+  if (answer === null) return failed("The model returned no values.");
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(answer);
+  } catch {
+    return failed("The answer wasn't JSON.");
   }
-  if (!message.parsed_output) {
-    return { ...result, ok: false, reason: "The model returned no values." };
+  const checked = answerSchema.safeParse(parsed);
+  if (!checked.success) {
+    const issues = checked.error.issues.slice(0, 5).map((issue) => `${issue.path.join(".")}: ${issue.message}`);
+    return failed(`The answer didn't fit the schema it was asked for (${issues.join("; ")}).`);
   }
-  return { ...result, ...request.toValues(message.parsed_output as z.infer<Wire>) };
+
+  // The reader gets its own values, without the kind.
+  const wire: Record<string, unknown> = { ...(checked.data as Record<string, unknown>) };
+  delete wire[KIND_VALUE];
+  return { ...result, ...request.toValues(wire as z.infer<Wire>) };
 }
 
 /** Holds values to one of the app's schemas. `name` finishes "The answer didn't fit the … schema". */
@@ -167,7 +261,3 @@ export const COPYING_RULES = `Copy each value exactly as it appears on the docum
 - A table has one entry for every row that is filled in, in the order the rows appear, and none for blank rows. Keep each value with the row it is written on.
 - With handwriting, read each character by its shape. If a digit could be two different numbers, give the one its shape is closest to.
 - If a value is blank, isn't on this document, or can't be read at all, say so: null for a number or a date, "" for text, and the "not there" choice for a value picked from a list. Never fill a gap with a likely value.`;
-
-function firstLine(text: string): string {
-  return text.split("\n")[0];
-}

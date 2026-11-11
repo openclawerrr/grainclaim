@@ -32,13 +32,14 @@ ${COPYING_RULES}
 export type FsaMapReadResult = ReadResult<FsaMapRead>;
 
 /**
- * Sends the map as it is and returns the values read from it. A read the
- * model refused, cut short or returned in the wrong shape comes back as
- * `ok: false`. Errors from the API itself are thrown.
+ * Sends the map as it is and returns the values read from it. A file that
+ * isn't this kind of document, and a read the model refused, cut short or
+ * returned in the wrong shape, come back as `ok: false`. Errors from the API itself are thrown.
  */
 export async function readFsaMap(file: Uint8Array, options: ReadOptions): Promise<FsaMapReadResult> {
   return readWithClaude(
     {
+      expects: "fsa_map",
       system: SYSTEM_PROMPT,
       file: photoOrPdfBlock(file, "An FSA map"),
       instruction: "Read this FSA map.",

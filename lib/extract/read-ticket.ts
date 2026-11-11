@@ -35,13 +35,14 @@ export type ReadTicketOptions = ReadOptions;
 
 /**
  * Sends the photo as it was taken and returns the values read from it.
- * A read the model refused, cut short or returned in the wrong shape comes
- * back as `ok: false`. Errors from the API itself (a bad key, a rate limit,
+ * A photo that isn't a scale ticket, and a read the model refused, cut short
+ * or returned in the wrong shape, come back as `ok: false`. Errors from the API itself (a bad key, a rate limit,
  * no network) are thrown.
  */
 export async function readTicket(photo: Uint8Array, options: ReadTicketOptions): Promise<TicketReadResult> {
   return readWithClaude(
     {
+      expects: "scale_ticket",
       system: SYSTEM_PROMPT,
       file: photoBlock(photo, "A ticket photo"),
       instruction: "Read this scale ticket.",

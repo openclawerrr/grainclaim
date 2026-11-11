@@ -27,7 +27,7 @@ GrainClaim is one record pipeline for a farmer: farm map → season setup → ha
 - `components/shell/`: the frame around every screen (top bar, icon rail, role switcher). `components/home/`: the farmer's and agent's home screens. `components/tickets/`: the Add ticket screen. `components/map/`: the farm map on the farmer's home screen, and what he adds on it: fields from a photo of his FSA map, and a bin. `components/season/`: the season setup screen. `components/ui/`: shadcn/ui components.
 - `lib/role/`: the two roles. `getCurrentRole()` in `current-role.ts` reads the current role on the server.
 - `lib/rules/`: calculations, matching rules and flags. Pure functions only: plain data in, results out, no database or framework calls. Every function has Vitest tests next to it.
-- `lib/extract/`: document reading, one schema per document type. `read.ts` holds the one Claude API call that every reader uses.
+- `lib/extract/`: document reading, one schema per document type. `read.ts` holds the one Claude API call that every reader uses. In that call each reader also says what kind of document the file is, and a file that isn't the kind the reader expects comes back refused with the kind it is. A new reader says which kind it expects; add nothing about the kind to a reader's own prompt.
 - `lib/db/`: database queries. `client.ts` holds the one server-only Supabase client.
 - `lib/photos/`: a photo file's type, SHA-256 hash, and EXIF time and GPS
 - `lib/tickets/`: adding a ticket, start to finish (`add-ticket.ts`). The reader and the database are passed in, so its tests never call Claude or Supabase.
@@ -49,7 +49,7 @@ GrainClaim is one record pipeline for a farmer: farm map → season setup → ha
 - `scripts/read-tickets/`: `npm run read-ticket -- <photo>`, which reads one ticket photo and prints its values and checks, and `npm run score-tickets`, which reads every sample ticket photo and scores each model against `documents-2026.json`. Both call the Claude API (server-side, uses `ANTHROPIC_API_KEY`) and cost money.
 - `scripts/read-documents/`: `npm run read-document -- <file>`, which reads one FSA map, FSA-578 or Summary of Coverage (a photo or a PDF) and prints its values and checks, and `npm run score-documents`, which reads the sample FSA map and FSA-578 photos and the Summary of Coverage PDF and scores each model against `documents-2026.json`. The FSA map reader returns what is printed on the map and no coordinates. Both call the Claude API and cost money.
 - `scripts/seed/`: `npm run seed`, which resets and loads the sample farm in stages (server-side, uses `SUPABASE_SECRET_KEY`). New stages go at the end of `STAGES` in `stages.ts`.
-- `docs/decisions/`: one-page decision record per design choice (what we picked, the main alternative, why). `loads.md` is how a load is recorded and finished.
+- `docs/decisions/`: one-page decision record per design choice (what we picked, the main alternative, why). `loads.md` is how a load is recorded and finished; `wrong-document.md` is how a reader notices the wrong kind of document.
 
 ### Rules
 
@@ -68,6 +68,7 @@ GrainClaim is one record pipeline for a farmer: farm map → season setup → ha
 - Row Level Security is on for every table and there are no access policies yet. Read and write the database from server code only, using `SUPABASE_SECRET_KEY`.
 - Keep `SUPABASE_SECRET_KEY` and `ANTHROPIC_API_KEY` in server code only. Never give them a `NEXT_PUBLIC_` prefix or import them into client components.
 - Never print, copy or commit the contents of `.env.local`. Variable names are listed in `SETUP.md`.
+- A file of the wrong kind is never saved. Saved documents lock and a file's hash must be unique, so a wrong save can't be taken back. Every pipeline refuses a wrong-kind file by name (`wrongKindMessage()` in `lib/rules/document-kind.ts`) before the file or a row is written, so it can still be added later where it belongs.
 - Store raw values from documents (gross, tare, moisture) and calculate elevator and insurance bushels separately; they differ.
 - A read value's confidence comes from checks we can explain (gross − tare = net; net ÷ standard weight = bushels; date inside harvest) and a second independent read, not from the model rating itself.
 - This stage has no logins. A Farmer / Agent switcher changes the view. The current role is saved in each record's "who" field (`uploaded_by`, `created_by`, `resolved_by`), because the audit log can't tell who acted. Get the role with `getCurrentRole()` from `lib/role/current-role.ts` when saving; never take it from a request body or form field. It reads a cookie, so a component that awaits it must sit inside a `<Suspense>` boundary.

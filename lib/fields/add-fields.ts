@@ -16,6 +16,8 @@
  *    skipped, and said so.
  *
  * A file that was already added is not read again: its saved reading is used.
+ * The reader also says what kind of document the file is. A file that isn't
+ * an FSA map is refused before anything of it is saved.
  *
  * The reader, the photo's EXIF, the outlines and the database are passed in,
  * so this is tested without Claude or Supabase (add-fields.test.ts). The real
@@ -27,6 +29,7 @@ import type { ReadResult } from "../extract/read";
 import { documentFilePath, documentFileType, sha256Hex, type CaptureInfo, type DocumentFileType } from "../photos/photo-file";
 import type { Role } from "../role/role";
 import type { DocumentCheck } from "../rules/document-checks";
+import { addedBeforeMessage, wrongKindMessage } from "../rules/document-kind";
 import { fieldNameProblem, tidyFieldName } from "../rules/field-names";
 import {
   alreadyOnMapSentence,
@@ -38,8 +41,6 @@ import {
 } from "../rules/field-proposal";
 import { checkFsaMap } from "../rules/fsa-map-checks";
 import type { MapSpot, PublicOutline } from "../rules/outline-pairing";
-
-const DOCUMENT_TITLES: Record<string, string> = { fsa_578: "FSA-578", summary_of_coverage: "Summary of Coverage" };
 
 // ---------------------------------------------------------------------------
 // What adding fields needs from the database (implemented in lib/db/field-store.ts)
@@ -178,10 +179,7 @@ async function addFsaMapDocument(
 
   const before = await deps.store.findDocumentByHash(hash);
   if (before) {
-    if (before.kind !== "fsa_map") {
-      const other = DOCUMENT_TITLES[before.kind] ?? "another document";
-      return { ok: false, message: `The file you chose was added before as your ${other}. Choose a photo of your FSA map.` };
-    }
+    if (before.kind !== "fsa_map") return { ok: false, message: addedBeforeMessage("fsa_map", before.kind) };
     const values = parseMap(before.readValues);
     if (values) return { ok: true, id: before.id, values, checks: before.readChecks };
     return { ok: false, message: "Your FSA map was added before but couldn't be read then. Take a new photo of it and add that." };
@@ -189,6 +187,8 @@ async function addFsaMapDocument(
 
   const read = await deps.readFsaMap(file);
   if (!read.ok) {
+    // Not an FSA map: nothing of it is saved, so it can still be added where it belongs.
+    if (read.wrongKind) return { ok: false, message: wrongKindMessage("fsa_map", read.wrongKind) };
     return { ok: false, message: "Your FSA map couldn't be read. Try a clearer photo, with the whole map flat and in the frame." };
   }
   const checks = checkFsaMap(read.values);

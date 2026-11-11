@@ -3,6 +3,7 @@ import documents from "../../sample-data/documents-2026.json";
 import { loadSampleFiles } from "../../scripts/seed/sample-files";
 import { fsaMapReadSchema, type FsaMapRead } from "../extract/fsa-map-schema";
 import type { ReadResult } from "../extract/read";
+import type { SeenKind } from "../rules/document-kind";
 import { sha256Hex, type CaptureInfo } from "../photos/photo-file";
 import type { Role } from "../role/role";
 import type { ExistingField } from "../rules/field-proposal";
@@ -114,14 +115,23 @@ const readFailed: ReadResult<FsaMapRead> = {
   usage: { input_tokens: 3000, output_tokens: 0 },
 };
 
-function setUp(options: Parameters<typeof fakeStore>[0] & { read?: ReadResult<FsaMapRead>; outlines?: PublicOutline[] } = {}) {
+/** What the reader says of a file that isn't an FSA map. */
+const readWrongKind = (wrongKind: SeenKind): ReadResult<FsaMapRead> => ({ ...readFailed, reason: `The file is ${wrongKind}.`, wrongKind });
+
+function setUp(
+  options: Parameters<typeof fakeStore>[0] & {
+    /** The reader's answer: the same for every file, or worked out from the file it is handed. */
+    read?: ReadResult<FsaMapRead> | ((file: Uint8Array) => ReadResult<FsaMapRead>);
+    outlines?: PublicOutline[];
+  } = {},
+) {
   const { store, saved } = fakeStore(options);
   const calls = { reads: 0, captures: 0, outlineSpots: [] as MapSpot[] };
   const deps: AddFieldsDeps = {
     store,
-    async readFsaMap() {
+    async readFsaMap(file) {
       calls.reads += 1;
-      return options.read ?? readOk(MAP);
+      return typeof options.read === "function" ? options.read(file) : (options.read ?? readOk(MAP));
     },
     async captureInfo() {
       calls.captures += 1;
@@ -273,8 +283,45 @@ describe("reading the FSA map photo", () => {
     it("says so when the file was added before as another document", async () => {
       const fsa578: DocumentRow = { id: "doc-578", kind: "fsa_578", file_sha256: sha256Hex(PHOTO), read_values: {}, read_checks: [] };
       const { deps, calls } = setUp({ documents: [fsa578] });
-      expect(await notReady(deps)).toEqual(["The file you chose was added before as your FSA-578. Choose a photo of your FSA map."]);
+      expect(await notReady(deps)).toEqual(["This file was added before as your FSA-578. Choose a photo of your FSA map."]);
       expect(calls.reads).toBe(0);
+    });
+
+    describe("a file that isn't an FSA map", () => {
+      /** A photo of the FSA-578: the map reader says what it is. */
+      const FSA_578_PHOTO = new Uint8Array([0xff, 0xd8, 0xff, 5]);
+      const onlyTheMapIsAMap = (file: Uint8Array) => (sha256Hex(file) === sha256Hex(FSA_578_PHOTO) ? readWrongKind("fsa_578") : readOk(MAP));
+
+      it("is refused by name, and nothing of it is saved: no file, no document row", async () => {
+        const { deps, saved, calls } = setUp({ read: onlyTheMapIsAMap });
+        expect(await notReady(deps, FSA_578_PHOTO)).toEqual(["This looks like an FSA-578, not an FSA map. Choose a photo of your FSA map."]);
+        expect(saved.files).toEqual([]);
+        expect(saved.documents).toEqual([]);
+        expect(saved.fields).toEqual([]);
+        // Nothing past the read happened: no capture time, no outlines.
+        expect(calls).toEqual({ reads: 1, captures: 0, outlineSpots: [] });
+      });
+
+      it("isn't remembered, so a second try with the map works and the refused file can go where it belongs", async () => {
+        const { deps, saved } = setUp({ read: onlyTheMapIsAMap });
+        await notReady(deps, FSA_578_PHOTO);
+        expect(await deps.store.findDocumentByHash(sha256Hex(FSA_578_PHOTO))).toBeNull();
+
+        const second = await ready(deps, PHOTO);
+        expect(second.proposal.fields.map((field) => field.defaultName)).toEqual(["North 80", "South 40"]);
+        expect(saved.documents.map((document) => [document.kind, document.file_sha256])).toEqual([["fsa_map", sha256Hex(PHOTO)]]);
+      });
+
+      it.each([
+        ["summary_of_coverage", "This looks like a Summary of Coverage, not an FSA map. Choose a photo of your FSA map."],
+        ["scale_ticket", "This looks like a scale ticket, not an FSA map. Choose a photo of your FSA map."],
+        ["settlement", "This looks like a settlement, not an FSA map. Choose a photo of your FSA map."],
+        ["other", "This doesn't look like an FSA map. Choose a photo of your FSA map."],
+      ] as const)("is refused when it is named as %s", async (kind, sentence) => {
+        const { deps, saved } = setUp({ read: readWrongKind(kind) });
+        expect(await notReady(deps)).toEqual([sentence]);
+        expect(saved.documents).toEqual([]);
+      });
     });
 
     it("asks for a new photo when the saved reading can't be used", async () => {

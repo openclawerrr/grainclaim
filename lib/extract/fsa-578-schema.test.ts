@@ -8,8 +8,8 @@ import {
   type Fsa578Read,
   type Fsa578Wire,
 } from "./fsa-578-schema";
-import { validateFsa578 } from "./read-fsa-578";
-import { sentValues } from "./wire-schema-testing";
+import { readFsa578, validateFsa578 } from "./read-fsa-578";
+import { describeKindCheck, sentValues } from "./wire-schema-testing";
 
 const KEY = documentsOfKind(loadDocumentsFile(), "fsa_578")[0][1].values;
 
@@ -176,3 +176,5 @@ describe("the FSA-578's values by name", () => {
     expect(byLabel(reversed)).toEqual(byLabel(KEY));
   });
 });
+
+describeKindCheck({ name: "readFsa578", expects: "fsa_578", read: readFsa578, wire: WIRE, values: KEY });

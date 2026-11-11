@@ -15,6 +15,13 @@
  * A file that was already added is not read again: its saved reading is
  * used. If writing the season fails part-way, what was written is removed.
  *
+ * Each reader also says what kind of document its file is. A file that isn't
+ * the kind its slot is for (an FSA map chosen as the FSA-578) is refused
+ * before anything of it is saved: no file, no document row. So it isn't
+ * remembered, and can still be added later where it belongs. The other slot's
+ * file, if it is the right kind and reads, is saved as usual, so a second try
+ * doesn't read it again.
+ *
  * The readers, the photo's EXIF and the database are passed in, so this is
  * tested without Claude or Supabase (setup-season.test.ts). The real ones are
  * wired up in app/season/actions.ts.
@@ -26,6 +33,7 @@ import { summaryOfCoverageReadSchema, type SummaryOfCoverageRead } from "../extr
 import { documentFilePath, documentFileType, sha256Hex, type CaptureInfo, type DocumentFileType } from "../photos/photo-file";
 import type { Role } from "../role/role";
 import type { DocumentCheck } from "../rules/document-checks";
+import { addedBeforeMessage, wrongKindMessage } from "../rules/document-kind";
 import { checkFsa578 } from "../rules/fsa-578-checks";
 import {
   proposeSeason,
@@ -165,10 +173,21 @@ export type ReadSeasonOutcome =
       /** Checks on the read values that didn't add up: one sentence each, to look at before confirming. */
       warnings: string[];
     }
-  /** No season can be set up from these files. One plain sentence per reason. */
-  | { status: "not_ready"; messages: string[] };
+  /**
+   * No season can be set up from these files. `messages` has one plain
+   * sentence per reason that is about both files or neither; `files` has the
+   * sentence about one file, to show beside that file's chooser.
+   */
+  | { status: "not_ready"; messages: string[]; files?: SeasonFileMessages };
+
+/** One sentence about one of the two files: why it can't be used, and what to choose. */
+export interface SeasonFileMessages {
+  fsa578?: string;
+  coverage?: string;
+}
 
 const notReady = (...messages: string[]): ReadSeasonOutcome => ({ status: "not_ready", messages });
+const filesNotReady = (files: SeasonFileMessages): ReadSeasonOutcome => ({ status: "not_ready", messages: [], files });
 
 const ewktPoint = ({ longitude, latitude }: { longitude: number; latitude: number }) =>
   `SRID=4326;POINT(${longitude} ${latitude})`;
@@ -210,10 +229,7 @@ async function addDocument<T>(
 
   const before = await deps.store.findDocumentByHash(hash);
   if (before) {
-    if (before.kind !== what.kind) {
-      const other = TITLES[before.kind as SeasonDocumentKind] ?? "another document";
-      return { ok: false, message: `The file you chose as your ${title} was added before as your ${other}. Choose your ${title}.` };
-    }
+    if (before.kind !== what.kind) return { ok: false, message: addedBeforeMessage(what.kind, before.kind) };
     const values = what.parse(before.readValues);
     if (values) return { ok: true, id: before.id, values, checks: before.readChecks };
     return { ok: false, message: `Your ${title} was added before but couldn't be read then. Take a new photo of it and add that.` };
@@ -221,6 +237,8 @@ async function addDocument<T>(
 
   const read = await what.read(deps, file);
   if (!read.ok) {
+    // Not the kind this slot is for: nothing of it is saved.
+    if (read.wrongKind) return { ok: false, message: wrongKindMessage(what.kind, read.wrongKind) };
     return { ok: false, message: `Your ${title} couldn't be read. Try a clearer photo, with the whole page flat and in the frame.` };
   }
   const checks = what.check(read.values);
@@ -260,11 +278,12 @@ export async function readSeasonDocuments(
   if (role !== "farmer") return notReady("Only the farmer sets up a season. Switch to Farmer to do it.");
 
   const types = { fsa578: documentFileType(files.fsa578), coverage: documentFileType(files.coverage) };
-  const wrongType = [
-    ...(types.fsa578 ? [] : ["Your FSA-578 must be a JPEG or PNG photo, or a PDF."]),
-    ...(types.coverage ? [] : ["Your Summary of Coverage must be a PDF, or a JPEG or PNG photo."]),
-  ];
-  if (wrongType.length > 0 || !types.fsa578 || !types.coverage) return notReady(...wrongType);
+  if (!types.fsa578 || !types.coverage) {
+    return filesNotReady({
+      ...(types.fsa578 ? {} : { fsa578: "Your FSA-578 must be a JPEG or PNG photo, or a PDF." }),
+      ...(types.coverage ? {} : { coverage: "Your Summary of Coverage must be a PDF, or a JPEG or PNG photo." }),
+    });
+  }
   if (sha256Hex(files.fsa578) === sha256Hex(files.coverage)) {
     return notReady("You chose the same file twice. Choose your FSA-578 and your Summary of Coverage.");
   }
@@ -278,7 +297,10 @@ export async function readSeasonDocuments(
     addDocument(COVERAGE, files.coverage, types.coverage, farm.insuredId, role, deps),
   ]);
   if (!fsa578.ok || !coverage.ok) {
-    return notReady(...[fsa578, coverage].flatMap((added) => (added.ok ? [] : [added.message])));
+    return filesNotReady({
+      ...(fsa578.ok ? {} : { fsa578: fsa578.message }),
+      ...(coverage.ok ? {} : { coverage: coverage.message }),
+    });
   }
 
   const setup = proposeSeason(fsa578.values, coverage.values, farm.fields);

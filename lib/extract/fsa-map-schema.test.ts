@@ -1,4 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it } from "vitest";
 import { documentsOfKind, loadDocumentsFile } from "../../scripts/print/documents-file";
 import {
@@ -10,7 +9,7 @@ import {
   type FsaMapWire,
 } from "./fsa-map-schema";
 import { readFsaMap, validateFsaMap } from "./read-fsa-map";
-import { sentValues } from "./wire-schema-testing";
+import { answeringClient, describeKindCheck, JPEG_FILE, sentValues } from "./wire-schema-testing";
 
 const KEY = documentsOfKind(loadDocumentsFile(), "fsa_map")[0][1].values;
 
@@ -202,20 +201,9 @@ describe("the FSA map's values by name", () => {
 });
 
 describe("readFsaMap", () => {
-  const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+  const JPEG = JPEG_FILE;
   /** A stand-in for the API that records what it was sent and answers with the sample map. */
-  function fakeClient() {
-    const sent: Anthropic.MessageCreateParams[] = [];
-    const client = {
-      messages: {
-        parse: async (params: Anthropic.MessageCreateParams) => {
-          sent.push(params);
-          return { stop_reason: "end_turn", usage: { input_tokens: 5000, output_tokens: 300 }, parsed_output: WIRE };
-        },
-      },
-    } as unknown as Anthropic;
-    return { client, sent };
-  }
+  const fakeClient = () => answeringClient({ document_kind: "fsa_map", ...WIRE });
 
   it("sends the photo with the map prompt and returns the answer key's values", async () => {
     const { client, sent } = fakeClient();
@@ -244,3 +232,5 @@ describe("readFsaMap", () => {
     );
   });
 });
+
+describeKindCheck({ name: "readFsaMap", expects: "fsa_map", read: readFsaMap, wire: WIRE, values: KEY });
