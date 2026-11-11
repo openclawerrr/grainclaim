@@ -2,6 +2,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import nextConfig from "../../next.config";
 import { loadSampleFiles } from "../../scripts/seed/sample-files";
 import { loadSampleOutlines, SAMPLE_OUTLINES_FILE } from "./nearby-outlines";
 
@@ -41,5 +42,15 @@ describe("a file that isn't an outlines file", () => {
   it("is refused when an outline isn't a polygon", async () => {
     const point = { type: "FeatureCollection", features: [{ type: "Feature", id: "a", geometry: { type: "Point", coordinates: [0, 0] } }] };
     await expect(loadSampleOutlines(folderWith(point))).rejects.toThrow("is not an outlines file");
+  });
+});
+
+describe("a hosted deploy", () => {
+  it("ships the outlines file with every route, by name in next.config.ts", () => {
+    // A deploy such as Vercel carries only the files each route is traced to need. If the file moves, this fails
+    // here and not on the day of the demo.
+    const included = nextConfig.outputFileTracingIncludes ?? {};
+    expect(Object.keys(included)).toEqual(["/*"]);
+    expect(included["/*"]).toContain(`./${SAMPLE_OUTLINES_FILE.split(path.sep).join("/")}`);
   });
 });
