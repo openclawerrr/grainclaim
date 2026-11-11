@@ -13,6 +13,14 @@ const nextConfig: NextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
+  // The server reads this file from disk when the farmer adds his FSA map
+  // (lib/fields/nearby-outlines.ts). A hosted deploy such as Vercel ships
+  // only the files each route is traced to need, so the file is named here
+  // and doesn't depend on the build working the path out from the code.
+  // "/*" is every route: the file is 13 KB.
+  outputFileTracingIncludes: {
+    "/*": ["./sample-data/nearby-outlines.geojson"],
+  },
   turbopack: {
     rules: {
       "*.css": {

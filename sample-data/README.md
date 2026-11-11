@@ -10,7 +10,7 @@ The farm sits on real ground in rural Story County, Iowa, so its map lines up wi
 |---|---|---|
 | `farm.json` | The permanent farm layer without fields: the insured, Main Street Elevator, Bins 3 and 4, Trucks 1 and 2 | `farm-base`, except Bin 3, which loads in `bin-3` |
 | `farm.geojson` | North 80 and South 40 as field outlines with FSA numbers. Demo beat 1 imports this same file live. The outlines are written by `npm run place-fields` | `fields` |
-| `nearby-outlines.geojson` | The outlines GrainClaim chooses from when it reads a photo of Dave's FSA map: North 80 and South 40 with the same coordinates as `farm.geojson`, and six real neighboring fields. No outline has a name or FSA numbers; the map photo supplies those. Made by `npm run build-outlines` | Not loaded |
+| `nearby-outlines.geojson` | The outlines GrainClaim chooses from when it reads a photo of Dave's FSA map: North 80 and South 40 with the same coordinates as `farm.geojson`, and six real neighboring fields. No outline has a name or FSA numbers; the map photo supplies those. Made by `npm run build-outlines` | Not loaded by the seed. The app reads it when Dave adds his FSA map photo in demo beat 1 |
 | `season-2026.json` | The 2026 corn policy, Units 1 and 2, and a field season for each field | `season-2026` |
 | `documents-2026.json` | Every value on Dave's 2026 sample documents (6 scale tickets, the FSA map, the FSA-578, the Summary of Coverage, the settlement), keyed by document name. It's the answer key for the reading tests | Not loaded: the documents are read live in the demo |
 | `print/` | The documents as one-page PDFs, made from `documents-2026.json` by `npm run print-docs`. How to print, fill in and photograph them: [`print/README.md`](print/README.md) | Not loaded |
