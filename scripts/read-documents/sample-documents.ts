@@ -1,6 +1,6 @@
 /**
- * Pairs the sample FSA-578 and Summary of Coverage with their answers in
- * documents-2026.json by name: a document delivered as a photo is
+ * Pairs the sample FSA map, FSA-578 and Summary of Coverage with their answers
+ * in documents-2026.json by name: a document delivered as a photo is
  * photos/<name>.jpg, and one delivered as a PDF is print/<name>.pdf. Pure.
  */
 import { DOCUMENT_KINDS, type DocumentKindKey } from "../../lib/extract/document-kinds";

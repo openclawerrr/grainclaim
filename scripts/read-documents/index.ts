@@ -1,9 +1,9 @@
 /**
- * npm run read-document -- <file>   read one FSA-578 or Summary of Coverage (a photo or
- *                                   a PDF), print its values and checks
- * npm run score-documents           read the sample FSA-578 photo and Summary of Coverage
- *                                   PDF with each model and score every value against
- *                                   documents-2026.json
+ * npm run read-document -- <file>   read one FSA map, FSA-578 or Summary of Coverage (a
+ *                                   photo or a PDF), print its values and checks
+ * npm run score-documents           read the sample FSA map and FSA-578 photos and the
+ *                                   Summary of Coverage PDF with each model and score
+ *                                   every value against documents-2026.json
  *
  * Server-side only: reads ANTHROPIC_API_KEY from .env.local and never prints it.
  */
@@ -13,6 +13,7 @@ import { DOCUMENT_KINDS, type ReadDocument } from "../../lib/extract/document-ki
 import { READ_MODELS, readCostUsd, type ReadModelKey } from "../../lib/extract/models";
 import type { ReadResult } from "../../lib/extract/read";
 import { scoreValues, summarizeDocuments, type ScoredDocumentRead } from "../../lib/extract/score-document";
+import { listOf } from "../../lib/rules/document-checks";
 import { loadDocumentsFile } from "../print/documents-file";
 import { loadEnvFile, mapAFewAtOnce, reportFailure } from "../read-tickets/run";
 import { parseArgs, USAGE, type Command } from "./args";
@@ -116,12 +117,12 @@ async function scoreAll(command: Extract<Command, { kind: "score" }>): Promise<v
     throw new Error(`The sample files and documents-2026.json don't line up:\n- ${match.problems.join("\n- ")}`);
   }
   if (match.documents.length === 0) {
-    throw new Error("documents-2026.json has no FSA-578 or Summary of Coverage to read.");
+    throw new Error("documents-2026.json has no FSA map, FSA-578 or Summary of Coverage to read.");
   }
 
   const { documents } = match;
   console.log(
-    `Reading ${documents.map((d) => `${DOCUMENT_KINDS[d.kind].title} (${d.file})`).join(" and ")}, ` +
+    `Reading ${listOf(documents.map((d) => `${DOCUMENT_KINDS[d.kind].title} (${d.file})`))}, ` +
       `${command.runs} time${command.runs === 1 ? "" : "s"} each, with ${command.models.map((m) => READ_MODELS[m].name).join(" and ")}.\n`,
   );
 

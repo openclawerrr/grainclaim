@@ -16,9 +16,9 @@ export const READ_MODEL_KEYS = Object.keys(READ_MODELS) as ReadModelKey[];
 export const DEFAULT_READ_MODEL: ReadModelKey = "sonnet";
 
 /**
- * The model that reads the FSA-578 and Summary of Coverage unless another is
- * asked for. It matched Sonnet on every value of both at about one eighteenth
- * of the cost. Why: docs/decisions/document-reading-model.md.
+ * The model that reads the FSA-578, Summary of Coverage and FSA map unless
+ * another is asked for. It matched Sonnet on every value of all three at
+ * about one eighteenth of the cost. Why: docs/decisions/document-reading-model.md.
  */
 export const DEFAULT_FORM_READ_MODEL: ReadModelKey = "haiku";
 

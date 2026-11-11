@@ -12,20 +12,21 @@ const MAX_RUNS = 10;
 
 /** What `--kind` takes, and the kind each one means. */
 export const KIND_NAMES: Record<string, DocumentKindKey> = {
+  "fsa-map": "fsa_map",
   "fsa-578": "fsa_578",
   "summary-of-coverage": "summary_of_coverage",
 };
 
 export const USAGE = [
   "Usage:",
-  "  npm run read-document -- <file> [--kind fsa-578|summary-of-coverage] [--model sonnet|haiku]",
-  "      Read one FSA-578 or Summary of Coverage (a photo or a PDF) and print",
-  "      its values and checks. The kind comes from the file's name unless",
-  "      --kind gives it. Haiku reads it unless --model says otherwise.",
+  "  npm run read-document -- <file> [--kind fsa-map|fsa-578|summary-of-coverage] [--model sonnet|haiku]",
+  "      Read one FSA map, FSA-578 or Summary of Coverage (a photo or a PDF)",
+  "      and print its values and checks. The kind comes from the file's name",
+  "      unless --kind gives it. Haiku reads it unless --model says otherwise.",
   "",
   "  npm run score-documents [-- options]",
-  "      Read the sample FSA-578 photo and Summary of Coverage PDF and score",
-  "      each value against sample-data/documents-2026.json.",
+  "      Read the sample FSA map and FSA-578 photos and the Summary of Coverage",
+  "      PDF, and score each value against sample-data/documents-2026.json.",
   "",
   "      --model sonnet|haiku   score one model (default: both)",
   `      --runs <n>             read each document n times, 1 to ${MAX_RUNS} (default: 1)`,
@@ -50,9 +51,10 @@ function kindFrom(value: string | undefined): DocumentKindKey {
   return kind;
 }
 
-/** The kind a file's name says it is: "fsa-578.jpg", "Summary of Coverage 2026.pdf". */
+/** The kind a file's name says it is: "fsa-map.jpg", "fsa-578.jpg", "Summary of Coverage 2026.pdf". */
 export function kindFromFileName(file: string): DocumentKindKey | null {
   const name = path.basename(file).toLowerCase();
+  if (/fsa.?map/.test(name)) return "fsa_map";
   if (/fsa.?578/.test(name)) return "fsa_578";
   if (/summary.?of.?coverage/.test(name)) return "summary_of_coverage";
   return null;
@@ -105,7 +107,7 @@ export function parseArgs(argv: readonly string[]): Command {
     document ??= kindFromFileName(file) ?? undefined;
     if (!document) {
       throw new Error(
-        `Can't tell from its name what kind of document "${path.basename(file)}" is. Add --kind fsa-578 or --kind summary-of-coverage.`,
+        `Can't tell from its name what kind of document "${path.basename(file)}" is. Add --kind ${Object.keys(KIND_NAMES).join(", --kind ")}.`,
       );
     }
     return { kind: "read", file, document, model: model ?? DEFAULT_FORM_READ_MODEL };
