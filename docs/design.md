@@ -27,7 +27,7 @@ Reference 2: outlined fields over satellite imagery, and big numbers with small 
 
 ## Leave out
 
-- Weather, soil health, donut charts, resource usage and "AI insight" cards. None of it is in the demo.
+- Weather, soil health, donut charts, resource usage and "AI insight" cards. None of it is in GrainClaim.
 - Modals without a reason. Use one only to confirm a step that can't be undone (approving the report, mixing grain anyway). Everything else opens inline or in a side panel next to the map.
 - More than one main button per screen, decorative icons and gradients.
 

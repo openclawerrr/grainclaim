@@ -1,8 +1,8 @@
 # GrainClaim: setup and status
 
-_Last updated: November 8, 2026_
+_Last updated: November 11, 2026_
 
-This file records what's been set up so far, how a teammate gets running, how we work together, and what comes next. The full product spec is the GrainClaim demo spec (pipeline, data model, calculations, matching rules, demo script).
+This file records what's been set up so far, how a teammate gets running, how we work together, and what comes next. The full product spec is `docs/spec.md` (pipeline, data model, calculations, matching rules, walkthrough).
 
 ---
 
@@ -60,7 +60,7 @@ Rules the database enforces on its own:
 
 ### Stack decisions (summary)
 
-One-page decision records go in `docs/decisions/` (Phase 0 requirement). Written so far: [which model reads tickets](docs/decisions/document-reading-model.md). The rest still need writing.
+One-page decision records go in `docs/decisions/` (Phase 0 requirement). Written so far: [which model reads documents](docs/decisions/document-reading-model.md) and [how a load is recorded and finished](docs/decisions/loads.md). The rest still need writing.
 
 | Need | Choice | Main alternative | Why |
 |---|---|---|---|
@@ -70,9 +70,9 @@ One-page decision records go in `docs/decisions/` (Phase 0 requirement). Written
 | Reading tickets and forms | Claude API with structured outputs (JSON schema) | Azure Document Intelligence, AWS Textract | Handles handwriting and messy layouts; one service for tickets, FSA-578, Summary of Coverage, settlements |
 | Confidence per value | Arithmetic checks + a second independent read, not the model's self-rating | Model self-reported confidence | Research shows self-reported confidence is poorly calibrated |
 | Map | MapLibre + Terra Draw + Turf.js, Esri or USGS NAIP satellite imagery | Mapbox / Google Maps | Free, no API key |
-| Location | The browser's location, read once when the farmer taps "Start harvesting"; ticket times; photo GPS and time (exifr) as proof of capture; a "Simulate location" switch for the demo | Native app GPS | No phone app for the demo, and a web app can't track location in the background |
+| Location | The browser's location, read once when the farmer taps "Start harvesting"; ticket times; photo GPS and time (exifr) as proof of capture | Native app GPS | No phone app at this stage, and a web app can't track location in the background |
 | PDF | Playwright printing the agent-view page | WeasyPrint | PDF matches the web page exactly |
-| Roles | Farmer / Agent switcher (drivers don't use the app) | Supabase Auth logins | The demo only needs to switch views |
+| Roles | Farmer / Agent switcher (drivers don't use the app) | Supabase Auth logins | This stage only needs to switch views |
 | Tests | Vitest | pytest | Same language as the app |
 
 ---
@@ -139,23 +139,23 @@ SUPABASE_SECRET_KEY=sb_secret_...
 
 ```bash
 npm run seed                            # the whole sample farm: farm-base, fields, season-2026
-npm run seed -- --through farm-base     # before demo beat 1: no fields and no season yet
+npm run seed -- --through farm-base     # the farm only: no Bin 3, fields or season yet, to add them in the app
 npm run seed -- --reset-only            # remove the sample farm
 npm run seed -- --help                  # all options
 ```
 
 - **It replaces the sample farm for everyone.** Post in the team chat before running it.
-- It also removes rows the app added to the sample farm during a demo: imported fields, trips, tickets on those trips, second photos of those tickets, and flags. Photo files stay in Storage; each is named by its hash, so adding the same photo again stores nothing new.
+- It also removes rows added to the sample farm in the app: fields, trips, tickets on those trips, second photos of those tickets, and flags. Photo files stay in Storage; each is named by its hash, so adding the same photo again stores nothing new.
 - `audit_event` is never cleared, so it grows with every run.
-- `sample-data/README.md` lists every made-up value and how to add a demo stage.
+- `sample-data/README.md` lists every made-up value and how to add a seed stage.
 
 ---
 
 ## Next steps
 
-See `docs/build-plan.md` for the milestones, who owns what, and what's done.
+See `docs/build-plan.md` for what's built, the build order and who owns what.
 
 ### Things to check
 
 - [ ] The Anthropic API key's expiry date (Claude Console → API Keys); make a new one before it lapses.
-- [ ] The Supabase free project pauses after a week without activity; open the dashboard the day before any demo.
+- [ ] The Supabase free project pauses after a week without activity; open the dashboard the day before GrainClaim is shown to anyone.
