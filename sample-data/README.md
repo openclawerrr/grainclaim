@@ -8,7 +8,7 @@ The farm sits on real ground in rural Story County, Iowa, so its map lines up wi
 
 | File | What it holds | Loaded by stage |
 |---|---|---|
-| `farm.json` | The permanent farm layer without fields: the insured, Main Street Elevator, Bins 3 and 4, Trucks 1 and 2 | `farm-base` |
+| `farm.json` | The permanent farm layer without fields: the insured, Main Street Elevator, Bins 3 and 4, Trucks 1 and 2 | `farm-base`, except Bin 3, which loads in `bin-3` |
 | `farm.geojson` | North 80 and South 40 as field outlines with FSA numbers. Demo beat 1 imports this same file live. The outlines are written by `npm run place-fields` | `fields` |
 | `nearby-outlines.geojson` | The outlines GrainClaim chooses from when it reads a photo of Dave's FSA map: North 80 and South 40 with the same coordinates as `farm.geojson`, and six real neighboring fields. No outline has a name or FSA numbers; the map photo supplies those. Made by `npm run build-outlines` | Not loaded |
 | `season-2026.json` | The 2026 corn policy, Units 1 and 2, and a field season for each field | `season-2026` |
@@ -60,7 +60,8 @@ Every sample document says "SAMPLE ONLY" at the top and bottom and carries a fai
 
 ```bash
 npm run seed                            # remove the sample farm, then load every stage
-npm run seed -- --through farm-base     # demo beat 1: everything except the fields and the season
+npm run seed -- --through farm-base     # demo beat 1: the farm name, elevator, trucks and Bin 4; no Bin 3, fields or season
+npm run seed -- --through bin-3         # Bin 3 too, but no fields or season
 npm run seed -- --through fields        # fields too, but no 2026 season
 npm run seed -- --reset-only            # remove the sample farm, load nothing
 npm run seed -- --list                  # list the stages
@@ -68,7 +69,7 @@ npm run seed -- --list                  # list the stages
 
 The database is shared, so seeding replaces the sample farm for everyone. Tell the team before you run it.
 
-Before demo beat 1, run `--through farm-base`. A live import of `farm.geojson` would otherwise fail, because North 80 and South 40 already exist with the same FSA numbers.
+Before demo beat 1, run `--through farm-base`. A live import of `farm.geojson` would otherwise fail, because North 80 and South 40 already exist with the same FSA numbers. Bin 3 is left out for the same reason: Dave adds it from the map (36 ft across, 24 ft to the eave), and the app won't save a second bin with a name the farm already has. A bin added live gets its own ID, not Bin 3's fixed one; the next reset removes it with the rest of the sample farm.
 
 ## Values
 

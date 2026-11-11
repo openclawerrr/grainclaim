@@ -2,15 +2,16 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FarmMapLoading, FarmMapPanel } from "@/components/map/farm-map-panel";
 import { cn } from "@/lib/utils";
 import { SeasonTotals, SeasonTotalsLoading } from "./season-totals";
 
 /**
  * The farmer's home screen: his two actions, the season totals and Needs
  * attention on the left, the farm map on the right (docs/spec.md Part 11,
- * docs/design.md). Add ticket and the unit totals are real. The rest is a
- * placeholder until its screen is built; no figure is shown that the database
- * didn't produce.
+ * docs/design.md). Add ticket, the unit totals and the map (with adding a
+ * bin) are real. The rest is a placeholder until its screen is built; no
+ * figure is shown that the database didn't produce.
  */
 export function FarmerHome() {
   return (
@@ -60,12 +61,11 @@ export function FarmerHome() {
         </Card>
       </div>
 
-      <section
-        aria-label="Farm map"
-        className="flex min-h-[32rem] flex-col items-center justify-center gap-1 rounded-2xl bg-green-100 p-6 text-center ring-1 ring-line"
-      >
-        <h2 className="text-lg font-semibold text-ink">Farm map</h2>
-        <p className="text-base text-ink-muted">Your fields will show here, outlined over the satellite picture.</p>
+      <section aria-label="Farm map" className="flex min-h-[32rem] flex-col overflow-hidden rounded-2xl bg-green-100 ring-1 ring-line">
+        <h2 className="sr-only">Farm map</h2>
+        <Suspense fallback={<FarmMapLoading />}>
+          <FarmMapPanel />
+        </Suspense>
       </section>
     </div>
   );

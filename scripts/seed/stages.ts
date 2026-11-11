@@ -36,18 +36,30 @@ export interface Stage {
   afterRows?(ctx: StageContext): Promise<void>;
 }
 
+/**
+ * The bin Dave adds from the map in demo beat 1. farm-base leaves it out so
+ * he can, and the stage after it loads it for everyone who starts later.
+ */
+export const LIVE_BIN_NAME = "Bin 3";
+const isLiveBin = (bin: { name: string }) => bin.name === LIVE_BIN_NAME;
+
 export const STAGES: readonly Stage[] = [
   {
-    // Demo beat 1 starts here: the farm exists but has no fields yet, and
-    // farm.geojson is imported live.
+    // Demo beat 1 starts here: the farm exists but has no fields and no
+    // Bin 3 yet. The fields are imported and Bin 3 is added live.
     name: "farm-base",
-    description: "insured, Main Street Elevator, Bins 3 and 4, Trucks 1 and 2 (no fields)",
+    description: "insured, Main Street Elevator, Bin 4, Trucks 1 and 2 (no Bin 3, no fields)",
     rows: (files) => ({
       insured: insuredRows(files),
       buyer: buyerRows(files),
-      bin: binRows(files),
+      bin: binRows(files).filter((bin) => !isLiveBin(bin)),
       truck: truckRows(files),
     }),
+  },
+  {
+    name: "bin-3",
+    description: "Bin 3, which demo beat 1 adds live from the map",
+    rows: (files) => ({ bin: binRows(files).filter(isLiveBin) }),
   },
   {
     name: "fields",
