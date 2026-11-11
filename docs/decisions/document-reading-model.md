@@ -1,12 +1,11 @@
 # Decision: which model reads documents
 
-**Status:** decided 2026-11-09 (Derrick) for tickets, the FSA-578 and the Summary of Coverage, measured the same day. The FSA map was measured 2026-11-10 and its model is not picked yet.
+**Status:** decided 2026-11-09 (Derrick) for tickets, the FSA-578 and the Summary of Coverage, measured the same day. The FSA map was measured and decided 2026-11-10 (Derrick).
 
 ## What we picked
 
 - **Tickets: Claude Sonnet 5.5** (`claude-sonnet-5-5`). It is `DEFAULT_READ_MODEL` in `lib/extract/models.ts`.
-- **FSA-578 and Summary of Coverage: Claude Haiku 5.5** (`claude-haiku-5-5`), for cost. It is `DEFAULT_FORM_READ_MODEL` in the same file.
-- **FSA map: not picked yet.** Both models read every value (see "What we measured: FSA map"). Until one is picked, `npm run read-document` reads a map with `DEFAULT_FORM_READ_MODEL`, like the other two forms.
+- **FSA-578, Summary of Coverage and FSA map: Claude Haiku 5.5** (`claude-haiku-5-5`), for cost. It is `DEFAULT_FORM_READ_MODEL` in the same file.
 
 All four are read through the Claude API with structured outputs, and switching a model is a one-word change.
 
@@ -47,7 +46,7 @@ The other model in each case: the same API, prompt and schema. Haiku costs about
 | Time per FSA-578 | 5.3 s | 2.9 s |
 | Time per Summary of Coverage | 3.5 s | 3.6 s |
 
-- **Neither model missed a value,** so these scores don't separate the models. That is why cost decides for these two documents (see "Why Haiku for the FSA-578 and Summary of Coverage").
+- **Neither model missed a value,** so these scores don't separate the models. That is why cost decides for these two documents (see "Why Haiku for the FSA-578, Summary of Coverage and FSA map").
 - **Both read correctly with the first prompts and schemas.** Nothing was tuned against the sample.
 - **Rows are scored by what identifies them,** not by their position: an FSA-578 field by its farm, tract and field number, a share by its producer key, a unit by its unit number. A row the read leaves out counts every one of its values as a miss, and so does a row the document doesn't have.
 - **Cost** is from the tokens each read was billed: about 8,600 in and 400 out for the FSA-578 photo, and about 6,500 in and 500 (Sonnet) to 960 (Haiku) out for the PDF.
@@ -63,7 +62,7 @@ The other model in each case: the same API, prompt and schema. Haiku costs about
 | Cost per map | $0.0168 | $0.0011 |
 | Time per map | 3.2 s | 4.1 s |
 
-- **Neither model missed a value,** so these scores don't separate the models here either.
+- **Neither model missed a value,** so these scores don't separate the models here either, and cost decides again.
 - **Both read correctly with the first prompt and schema.** Nothing was tuned against the sample, and the answer key wasn't changed.
 - **The 19 values** are the program year, farm number, state, county, the date the map was made, the PLSS label and the imagery credit; each tract's number and cropland total; and each field's number, acres, erodibility code and land use.
 - **Four values take more than copying.**
@@ -81,16 +80,16 @@ The other model in each case: the same API, prompt and schema. Haiku costs about
 - **Reliability on harder photos in a live demo.** The measured scores don't separate the models, so this is a judgment, not a measurement: a ticket photographed live will be harder than our six, and the larger model is the safer one to put in front of judges. Sonnet was also the only model with no misses at all.
 - **Cost doesn't decide it.** A farm with 300 tickets in a season (our example, not a measured number) would pay about $6 with Sonnet and $0.33 with Haiku. Either is small next to one wrong load on a production report.
 
-## Why Haiku for the FSA-578 and Summary of Coverage
+## Why Haiku for the FSA-578, Summary of Coverage and FSA map
 
-- **Haiku matched Sonnet on every value.** Both read 237 of 237, with no failed reads, so there is no measured accuracy to pay for.
-- **Cost.** One read of each document costs about $0.04 with Sonnet and $0.002 with Haiku.
+- **Haiku matched Sonnet on every value.** Both read 237 of 237 on the FSA-578 and Summary of Coverage and 57 of 57 on the FSA map, with no failed reads, so there is no measured accuracy to pay for.
+- **Cost.** One read of all three documents costs about $0.056 with Sonnet and $0.003 with Haiku. The map alone is $0.0168 against $0.0011, about one fifteenth.
 - **Unlike on tickets, Haiku had no misses at all here.** Its ticket misses were all one unstored value, the buyer's address.
-- **The risk is the same one as for tickets, taken the other way.** A real FSA-578 or another insurer's summary will be harder than our two samples, and the smaller model may fall behind on them. The checks in `lib/rules/` flag a number that doesn't add up whichever model read it, and `--model sonnet` (or changing `DEFAULT_FORM_READ_MODEL`) switches back.
+- **The risk is the same one as for tickets, taken the other way.** A real FSA-578, another insurer's summary or a real FSA map will be harder than our three samples, and the smaller model may fall behind on them. The map is the least tested of the three: it has two fields, and reading a field's land use and tract takes more than copying. The checks in `lib/rules/` flag a number that doesn't add up whichever model read it, and `--model sonnet` (or changing `DEFAULT_FORM_READ_MODEL`) switches back.
 
 ## Haiku for the second read, later
 
-AGENTS.md says a value's confidence comes from the arithmetic checks and a second independent read. The second read isn't built yet. Haiku is a cheap candidate for it on tickets: it matched Sonnet on every stored value here, it is a different model from the first read, and it would add about a tenth of a cent per ticket. For the FSA-578 and Summary of Coverage, where Haiku is the first read, the independent second read would be Sonnet.
+AGENTS.md says a value's confidence comes from the arithmetic checks and a second independent read. The second read isn't built yet. Haiku is a cheap candidate for it on tickets: it matched Sonnet on every stored value here, it is a different model from the first read, and it would add about a tenth of a cent per ticket. For the FSA-578, Summary of Coverage and FSA map, where Haiku is the first read, the independent second read would be Sonnet.
 
 ## What this doesn't show
 
