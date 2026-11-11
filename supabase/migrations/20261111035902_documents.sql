@@ -1,5 +1,6 @@
 -- =====================================================================
--- GrainClaim: documents (FSA-578, Summary of Coverage, FSA map)
+-- GrainClaim: documents (FSA-578, Summary of Coverage, FSA map), and
+-- field seasons that aren't insured
 --
 -- 1. The private bucket also takes PDFs, because a Summary of Coverage
 --    arrives as the insurer's PDF.
@@ -7,9 +8,11 @@
 --    added, and the values read from it. One table for every kind of
 --    document that isn't a scale ticket.
 -- 3. The file and the read values lock once saved, as a ticket's do.
+-- 4. A field season can be uninsured: a field on the FSA-578 that no
+--    unit covers keeps its season and planted acres, with no unit.
 --
 -- Scale tickets stay in public.ticket, which has a column for each
--- value. Nothing on the existing tables changes here.
+-- value.
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -105,3 +108,20 @@ create trigger document_audit
 -- Row Level Security, with no access rules: only server-side code using
 -- the secret key can read or write documents.
 alter table public.document enable row level security;
+
+
+-- ---------------------------------------------------------------------
+-- 4. FIELD SEASONS THAT AREN'T INSURED
+-- ---------------------------------------------------------------------
+
+-- A field the FSA-578 reports but no unit on the Summary of Coverage
+-- covers is kept: it has a season, a crop and planted acres, but it is
+-- in no unit, so it has no guarantee and its grain counts toward no
+-- unit's total. An insured season always has a unit, and an uninsured
+-- one never does.
+alter table public.field_season
+  alter column unit_id drop not null;
+
+alter table public.field_season
+  add constraint field_season_insured_has_unit
+  check ((insured and unit_id is not null) or (not insured and unit_id is null));

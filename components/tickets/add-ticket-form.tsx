@@ -112,6 +112,9 @@ function summary(status: "saved" | "duplicate" | "already_added", ticket: Ticket
   if (status === "already_added") {
     return `This exact photo was added on ${formatDayOf(ticket.uploadedAt, FARM_TIME_ZONE)}. Nothing new was saved.`;
   }
+  if (ticket.origin?.insured === false) {
+    return `It's linked to ${where}, which isn't insured, so it isn't counted in a unit's total.`;
+  }
   return where ? `It's linked to ${where} and counted in the season totals.` : "It was saved.";
 }
 

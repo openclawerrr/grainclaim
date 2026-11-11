@@ -91,12 +91,19 @@ describe("unitPlantedAcres", () => {
     { unit_id: "unit-1", crop_year: 2026, planted_acres: 39.8 },
     { unit_id: "unit-2", crop_year: 2026, planted_acres: 40 },
     { unit_id: "unit-1", crop_year: 2025, planted_acres: 77 },
+    // Not insured: in no unit.
+    { unit_id: null, crop_year: 2026, planted_acres: 20 },
   ];
 
   it("adds up the unit's fields for one crop year", () => {
     expect(unitPlantedAcres(fieldSeasons, "unit-1", 2026)).toBeCloseTo(120, 9);
     expect(unitPlantedAcres(fieldSeasons, "unit-2", 2026)).toBe(40);
     expect(unitPlantedAcres(fieldSeasons, "unit-1", 2025)).toBe(77);
+  });
+
+  it("leaves a field that isn't insured out of every unit", () => {
+    const total = ["unit-1", "unit-2"].reduce((acres, unit) => acres + unitPlantedAcres(fieldSeasons, unit, 2026), 0);
+    expect(total).toBeCloseTo(160, 9);
   });
 
   it("is zero for a unit with no fields that year", () => {

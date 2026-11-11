@@ -56,6 +56,7 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 - The database enforces these rules. Design code to fit them; never work around them:
   - Ticket photos and read values lock once saved. A wrong value gets a `flag` row with `flag_type = 'misread'`, never an edit. The same goes for a row in `document`, which holds every other kind of document the farmer adds (FSA-578, Summary of Coverage, FSA map): its file and read values lock once saved.
   - One policy per insured, crop, state, county and crop year. A season is set up once; the app refuses a second.
+  - A field season is insured and has a unit, or is not insured and has none. A field on the FSA-578 that no unit covers is kept that way: guarantees and unit totals skip it.
   - A truck has only one open trip at a time.
   - A photo's SHA-256 hash must be unique.
   - `audit_event` is append-only and filled automatically by triggers.

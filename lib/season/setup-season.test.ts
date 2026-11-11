@@ -340,8 +340,8 @@ describe("confirmSeason", () => {
         severity: "warn",
         message:
           "North 80: your FSA-578 shows 80.20 acres, but your Summary of Coverage shows 80.00. Your map measures 80.20. Tell your agent before harvest.",
-        record_type: "unit",
-        record_id: "unit-1",
+        record_type: "field",
+        record_id: NORTH.id,
         related: [
           { type: "field", id: NORTH.id },
           { type: "document", id: "doc-fsa" },
@@ -456,7 +456,49 @@ describe("confirmSeason", () => {
     expect(context.saved.flags.map((f) => [f.flag_type, f.record_type, f.record_id])).toEqual([
       ["field_not_on_map", "document", "doc-fsa"],
       ["unreported_field", "field", "west-20"],
-      ["acre_mismatch", "unit", "unit-1"],
+      ["acre_mismatch", "field", NORTH.id],
+    ]);
+  });
+
+  it("writes two field seasons for a unit with two fields, and attaches a tract's acre flag to the unit", async () => {
+    const east: MappedField = { id: "east-40", name: "East 40", fsa_farm: "1234", fsa_tract: "5678", fsa_field: "4", mapped_acres: 40.3 };
+    const fsa = { ...FSA, fields: [...FSA.fields, { ...FSA.fields[0], field: "4", reported_acres: 40.3 }] };
+    // One row for Unit 1 covers all of tract 5678, at 120.00 acres against the FSA-578's 120.50.
+    const coverage = { ...COVERAGE, units: [{ ...COVERAGE.units[0], fsa_field: null, acres: 120 }, COVERAGE.units[1]] };
+    const context = setup({ fields: [...FIELDS, east], fsa: readOk(fsa), coverage: readOk(coverage) });
+    const { documents: ids, proposal } = await ready(context);
+    expect(proposal.units[0].guaranteeBu).toBeCloseTo(16_267.5, 9);
+
+    await confirmSeason(ids, "farmer", context.deps);
+    expect(context.saved.units.map((u) => u.unit_number)).toEqual(["1", "2"]);
+    expect(context.saved.fieldSeasons.map((fs) => [fs.field_id, fs.unit_id, fs.planted_acres, fs.insured])).toEqual([
+      [NORTH.id, "unit-1", 80.2, true],
+      ["east-40", "unit-1", 40.3, true],
+      [SOUTH.id, "unit-2", 40, true],
+    ]);
+    expect(context.saved.flags.map((f) => [f.flag_type, f.record_type, f.record_id, f.related.filter((r) => r.type === "field").map((r) => r.id)])).toEqual([
+      ["acre_mismatch", "unit", "unit-1", [NORTH.id, "east-40"]],
+    ]);
+  });
+
+  it("keeps a field that is in no unit: a field season with no unit, not insured, and the flag for the agent", async () => {
+    const west: MappedField = { id: "west-20", name: "West 20", fsa_farm: "1234", fsa_tract: "9001", fsa_field: "7", mapped_acres: 20 };
+    const line = { ...FSA.fields[0], tract: "9001", field: "7", reported_acres: 20, planting_date: "2026-05-04" };
+    const context = setup({ fields: [...FIELDS, west], fsa: readOk({ ...FSA, fields: [...FSA.fields, line] }) });
+    const { documents: ids } = await ready(context);
+    await confirmSeason(ids, "farmer", context.deps);
+
+    expect(context.saved.fieldSeasons).toEqual([
+      expect.objectContaining({ field_id: NORTH.id, unit_id: "unit-1", insured: true }),
+      expect.objectContaining({ field_id: SOUTH.id, unit_id: "unit-2", insured: true }),
+      { id: "fs-3", field_id: "west-20", unit_id: null, crop_year: 2026, crop: "corn", planted_acres: 20, planting_date: "2026-05-04", practice: "non-irrigated", insured: false },
+    ]);
+    // Every row fits the database's rule: insured seasons have a unit, uninsured ones don't.
+    for (const fs of context.saved.fieldSeasons) expect(fs.insured).toBe(fs.unit_id !== null);
+    expect(context.saved.units).toHaveLength(2);
+    expect(context.saved.flags.map((f) => [f.flag_type, f.record_type, f.record_id])).toEqual([
+      ["uninsured_field", "field", "west-20"],
+      ["acre_mismatch", "field", NORTH.id],
     ]);
   });
 });

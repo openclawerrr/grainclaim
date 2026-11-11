@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatAcres, formatDate, formatPercent, formatWholeBushels } from "@/lib/format";
-import type { ProposedUnit, SeasonProposal } from "@/lib/rules/season-setup";
+import type { ProposedFieldSeason, ProposedUnit, SeasonProposal } from "@/lib/rules/season-setup";
 import { cn } from "@/lib/utils";
 
 const PLAN_NAMES: Record<string, string> = {
@@ -26,13 +26,13 @@ function shareWords(unit: ProposedUnit): string {
 }
 
 /**
- * The season two documents describe: the policy, each unit with its field,
- * acres, share and guarantee, and what needs a look. The same view before
- * and after the farmer confirms. Guarantees are rounded here and nowhere
- * else.
+ * The season two documents describe: the policy, each unit with its fields,
+ * acres, share and guarantee, the fields that aren't insured, and what needs
+ * a look. The same view before and after the farmer confirms. Guarantees are
+ * rounded here and nowhere else.
  */
 export function SeasonProposalView({ proposal, warnings = [] }: { proposal: SeasonProposal; warnings?: string[] }) {
-  const { policy, units, flags } = proposal;
+  const { policy, units, uninsuredFields, flags } = proposal;
   return (
     <div className="flex flex-col gap-4">
       {flags.length > 0 ? (
@@ -81,6 +81,22 @@ export function SeasonProposalView({ proposal, warnings = [] }: { proposal: Seas
           <UnitCard key={unit.unitNumber} unit={unit} proposal={proposal} />
         ))}
       </div>
+
+      {uninsuredFields.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Not insured</CardTitle>
+            <p className="text-sm text-ink-muted">
+              On your FSA-578, but in no unit on your Summary of Coverage. {uninsuredFields.length === 1 ? "It is" : "They are"} kept
+              with {uninsuredFields.length === 1 ? "its" : "their"} acres, with no guarantee, and {uninsuredFields.length === 1 ? "its" : "their"} grain
+              won&apos;t count in a unit&apos;s total.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <FieldTable fields={uninsuredFields} showCoverage={false} />
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }
@@ -96,7 +112,6 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 function UnitCard({ unit, proposal }: { unit: ProposedUnit; proposal: SeasonProposal }) {
   const { policy } = proposal;
-  const acresDiffer = unit.coverageAcres !== null && formatAcres(unit.coverageAcres) !== formatAcres(unit.plantedAcres);
   return (
     <Card>
       <CardHeader>
@@ -120,36 +135,58 @@ function UnitCard({ unit, proposal }: { unit: ProposedUnit; proposal: SeasonProp
             This unit&apos;s field isn&apos;t on your FSA-578, so it has no planted acres yet.
           </p>
         ) : (
-          <table className="w-full text-left text-base">
-            <thead>
-              <tr className="border-b border-line text-sm text-ink-muted">
-                <th scope="col" className="py-2 font-medium">Field</th>
-                <th scope="col" className="py-2 pl-4 text-right font-medium">FSA-578 acres</th>
-                <th scope="col" className="py-2 pl-4 text-right font-medium">Summary of Coverage</th>
-                <th scope="col" className="py-2 pl-4 text-right font-medium">Map</th>
-                <th scope="col" className="py-2 pl-4 font-medium">Planted</th>
-              </tr>
-            </thead>
-            <tbody>
-              {unit.fields.map((field) => (
-                <tr key={field.fieldId} className="text-ink">
-                  <th scope="row" className="py-2 font-semibold">{field.fieldName}</th>
-                  <td className="py-2 pl-4 text-right tabular-nums">{formatAcres(field.plantedAcres)}</td>
-                  <td className="py-2 pl-4 text-right tabular-nums">
-                    <span className={cn(acresDiffer && "rounded-md bg-yellow-100 px-1.5 py-0.5 font-semibold")}>
-                      {unit.coverageAcres === null ? "Not shown" : formatAcres(unit.coverageAcres)}
-                    </span>
-                  </td>
-                  <td className="py-2 pl-4 text-right tabular-nums">
-                    {field.mappedAcres === null ? "Not measured" : formatAcres(field.mappedAcres)}
-                  </td>
-                  <td className="py-2 pl-4">{field.plantingDate ? formatDate(field.plantingDate) : "Not shown"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <FieldTable fields={unit.fields} showCoverage />
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/** What the Summary of Coverage shows for a field: its own acres, or its tract's when the summary lists the tract whole. */
+function coverageWords(field: ProposedFieldSeason): string {
+  if (field.coverageAcres === null) return "Not shown";
+  return field.coverageTract === null
+    ? formatAcres(field.coverageAcres)
+    : `${formatAcres(field.coverageAcres)} for tract ${field.coverageTract}`;
+}
+
+/** One row per field: its acres from each source side by side, with the summary's marked when it differs from the FSA-578. */
+function FieldTable({ fields, showCoverage }: { fields: ProposedFieldSeason[]; showCoverage: boolean }) {
+  return (
+    <table className="w-full text-left text-base">
+      <thead>
+        <tr className="border-b border-line text-sm text-ink-muted">
+          <th scope="col" className="py-2 font-medium">Field</th>
+          <th scope="col" className="py-2 pl-4 text-right font-medium">FSA-578 acres</th>
+          {showCoverage ? <th scope="col" className="py-2 pl-4 text-right font-medium">Summary of Coverage</th> : null}
+          <th scope="col" className="py-2 pl-4 text-right font-medium">Map</th>
+          <th scope="col" className="py-2 pl-4 font-medium">Planted</th>
+        </tr>
+      </thead>
+      <tbody>
+        {fields.map((field) => {
+          // A figure for a whole tract isn't this field's own, so it isn't marked against it.
+          const differs =
+            field.coverageAcres !== null &&
+            field.coverageTract === null &&
+            formatAcres(field.coverageAcres) !== formatAcres(field.plantedAcres);
+          return (
+            <tr key={field.fieldId} className="text-ink">
+              <th scope="row" className="py-2 font-semibold">{field.fieldName}</th>
+              <td className="py-2 pl-4 text-right tabular-nums">{formatAcres(field.plantedAcres)}</td>
+              {showCoverage ? (
+                <td className="py-2 pl-4 text-right tabular-nums">
+                  <span className={cn(differs && "rounded-md bg-yellow-100 px-1.5 py-0.5 font-semibold")}>{coverageWords(field)}</span>
+                </td>
+              ) : null}
+              <td className="py-2 pl-4 text-right tabular-nums">
+                {field.mappedAcres === null ? "Not measured" : formatAcres(field.mappedAcres)}
+              </td>
+              <td className="py-2 pl-4">{field.plantingDate ? formatDate(field.plantingDate) : "Not shown"}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }

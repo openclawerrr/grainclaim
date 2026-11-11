@@ -9,7 +9,8 @@
  *
  * 2. `confirmSeason`: he confirms. The season is worked out again from the
  *    saved documents, never from anything the browser sends, and the policy,
- *    units, field seasons and flags are written.
+ *    units, field seasons and flags are written. A field on the FSA-578 that
+ *    no unit covers gets a field season too, marked not insured, with no unit.
  *
  * A file that was already added is not read again: its saved reading is
  * used. If writing the season fails part-way, what was written is removed.
@@ -26,7 +27,13 @@ import { documentFilePath, documentFileType, sha256Hex, type CaptureInfo, type D
 import type { Role } from "../role/role";
 import type { DocumentCheck } from "../rules/document-checks";
 import { checkFsa578 } from "../rules/fsa-578-checks";
-import { proposeSeason, type MappedField, type ProposedFlag, type SeasonProposal } from "../rules/season-setup";
+import {
+  proposeSeason,
+  type MappedField,
+  type ProposedFieldSeason,
+  type ProposedFlag,
+  type SeasonProposal,
+} from "../rules/season-setup";
 import { checkSummaryOfCoverage } from "../rules/summary-of-coverage-checks";
 
 export type SeasonDocumentKind = "fsa_578" | "summary_of_coverage";
@@ -89,13 +96,14 @@ export interface NewUnit {
 
 export interface NewFieldSeason {
   field_id: string;
-  unit_id: string;
+  /** Null for a field that is in no unit. The database requires a unit when insured and none when not. */
+  unit_id: string | null;
   crop_year: number;
   crop: string;
   planted_acres: number;
   planting_date: string | null;
   practice: string;
-  insured: true;
+  insured: boolean;
 }
 
 export interface NewFlag {
@@ -358,22 +366,25 @@ export async function confirmSeason(
     written.unitIds = units.map((unit) => unit.id);
     const unitIds = new Map(units.map((unit) => [unit.unit_number, unit.id]));
 
-    const fieldSeasons = await store.insertFieldSeasons(
-      proposal.units.flatMap((unit) => {
+    const fieldSeason = (field: ProposedFieldSeason, unitId: string | null): NewFieldSeason => ({
+      field_id: field.fieldId,
+      unit_id: unitId,
+      crop_year: policy.crop_year,
+      crop: field.crop,
+      planted_acres: field.plantedAcres,
+      planting_date: field.plantingDate,
+      practice: field.practice,
+      insured: unitId !== null,
+    });
+    const fieldSeasons = await store.insertFieldSeasons([
+      ...proposal.units.flatMap((unit) => {
         const unitId = unitIds.get(unit.unitNumber);
         if (!unitId) throw new Error(`Unit ${unit.unitNumber} wasn't saved.`);
-        return unit.fields.map((field) => ({
-          field_id: field.fieldId,
-          unit_id: unitId,
-          crop_year: policy.crop_year,
-          crop: field.crop,
-          planted_acres: field.plantedAcres,
-          planting_date: field.plantingDate,
-          practice: field.practice,
-          insured: true as const,
-        }));
+        return unit.fields.map((field) => fieldSeason(field, unitId));
       }),
-    );
+      // A field on the FSA-578 that no unit covers is kept, with no unit and not insured.
+      ...proposal.uninsuredFields.map((field) => fieldSeason(field, null)),
+    ]);
     written.fieldSeasonIds = fieldSeasons.map((fieldSeason) => fieldSeason.id);
 
     const bothDocuments = [fsaDocument.id, coverageDocument.id].map((id) => ({ type: "document" as const, id }));

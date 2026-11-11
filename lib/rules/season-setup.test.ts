@@ -71,10 +71,11 @@ describe("the sample documents", () => {
         type: "acre_mismatch",
         message:
           "North 80: your FSA-578 shows 80.20 acres, but your Summary of Coverage shows 80.00. Your map measures 80.20. Tell your agent before harvest.",
-        about: { record: "unit", unitNumber: "1" },
+        about: { record: "field", fieldId: NORTH.id },
         fieldIds: [NORTH.id],
       },
     ]);
+    expect(season.uninsuredFields).toEqual([]);
   });
 
   it("take the policy from the Summary of Coverage, as the seed's season has it", () => {
@@ -163,7 +164,7 @@ describe("matching by FSA numbers", () => {
       "North 80 is in both Unit 1 and Unit 2 on the Summary of Coverage.",
     ]);
     expect(problems(FSA, withUnit(1, { fsa_tract: null }))).toEqual([
-      "Unit 2's FSA farm, tract and field numbers couldn't be read from the Summary of Coverage.",
+      "Unit 2's FSA farm and tract numbers couldn't be read from the Summary of Coverage.",
     ]);
   });
 });
@@ -189,7 +190,7 @@ describe("flags", () => {
     const season = proposal({ ...FSA, fields: [FSA.fields[0]] });
     expect(season.flags.map((f) => [f.type, f.about])).toEqual([
       ["unreported_field", { record: "field", fieldId: SOUTH.id }],
-      ["acre_mismatch", { record: "unit", unitNumber: "1" }],
+      ["acre_mismatch", { record: "field", fieldId: NORTH.id }],
     ]);
     expect(season.units[1]).toMatchObject({ unitNumber: "2", fields: [], plantedAcres: 0, guaranteeBu: 0 });
   });
@@ -202,10 +203,25 @@ describe("flags", () => {
     ]);
   });
 
-  it("flags a reported field that is in no unit as possibly uninsured, and doesn't put it in a unit", () => {
-    const west: MappedField = { id: "west-20", name: "West 20", fsa_farm: "1234", fsa_tract: "5678", fsa_field: "7", mapped_acres: 20 };
-    const line: Line = { ...FSA.fields[0], field: "7", reported_acres: 20 };
+  it("keeps a reported field that is in no unit, as not insured: a season with its acres, no unit and no guarantee", () => {
+    const west: MappedField = { id: "west-20", name: "West 20", fsa_farm: "1234", fsa_tract: "9001", fsa_field: "7", mapped_acres: 20 };
+    const line: Line = { ...FSA.fields[0], tract: "9001", field: "7", reported_acres: 20, planting_date: "2026-05-04" };
     const season = proposal({ ...FSA, fields: [...FSA.fields, line] }, COVERAGE, [...FIELDS, west]);
+
+    expect(season.uninsuredFields).toEqual([
+      {
+        fieldId: "west-20",
+        fieldName: "West 20",
+        crop: "corn",
+        plantedAcres: 20,
+        plantingDate: "2026-05-04",
+        practice: "non-irrigated",
+        mappedAcres: 20,
+        coverageAcres: null,
+        coverageTract: null,
+      },
+    ]);
+    // The flag for the agent stays.
     expect(season.flags.filter((f) => f.type === "uninsured_field")).toEqual([
       {
         type: "uninsured_field",
@@ -214,7 +230,19 @@ describe("flags", () => {
         fieldIds: ["west-20"],
       },
     ]);
+    // It is in no unit, and no unit's acres or guarantee count it.
     expect(season.units.flatMap((u) => u.fields.map((f) => f.fieldName))).toEqual(["North 80", "South 40"]);
+    expect(season.units.map((u) => [u.plantedAcres, Math.round(u.guaranteeBu)])).toEqual([
+      [80.2, 10_827],
+      [40, 3_600],
+    ]);
+  });
+
+  it("still checks an uninsured field's outline against its reported acres", () => {
+    const west: MappedField = { id: "west-20", name: "West 20", fsa_farm: "1234", fsa_tract: "9001", fsa_field: "7", mapped_acres: 23 };
+    const line: Line = { ...FSA.fields[0], tract: "9001", field: "7", reported_acres: 20 };
+    const season = proposal({ ...FSA, fields: [...FSA.fields, line] }, COVERAGE, [...FIELDS, west]);
+    expect(season.flags.filter((f) => f.fieldIds.includes("west-20")).map((f) => f.type)).toEqual(["uninsured_field", "acre_mismatch"]);
   });
 
   it("flags an FSA-578 line for a field that isn't on the map", () => {
@@ -240,8 +268,8 @@ describe("acres that differ", () => {
   it("flags any difference between the two documents, which both print to the hundredth", () => {
     expect(proposal(FSA, withUnit(0, { acres: 80.19 })).flags.map((f) => f.type)).toEqual(["acre_mismatch"]);
     expect(proposal(withLine(1, { reported_acres: 40.01 })).flags.map((f) => f.about)).toEqual([
-      { record: "unit", unitNumber: "1" },
-      { record: "unit", unitNumber: "2" },
+      { record: "field", fieldId: NORTH.id },
+      { record: "field", fieldId: SOUTH.id },
     ]);
   });
 
@@ -260,7 +288,7 @@ describe("acres that differ", () => {
     const season = proposal(FSA, COVERAGE, shrunk);
     expect(season.flags.map((f) => [f.about, f.message])).toEqual([
       [
-        { record: "unit", unitNumber: "1" },
+        { record: "field", fieldId: NORTH.id },
         "North 80: your FSA-578 shows 80.20 acres, but your Summary of Coverage shows 80.00. Your map measures 80.20. Tell your agent before harvest.",
       ],
       [
@@ -276,11 +304,162 @@ describe("acres that differ", () => {
       "North 80: your FSA-578 shows 80.20 acres, but your Summary of Coverage shows 80.00. Your map measures 78.00. Tell your agent before harvest.",
     ]);
   });
+});
 
-  it("doesn't add a second field to a unit: the summary names one field per unit, so the other is flagged as possibly uninsured", () => {
-    const east: MappedField = { id: "east-40", name: "East 40", fsa_farm: "1234", fsa_tract: "5678", fsa_field: "4", mapped_acres: 40.3 };
-    const fsa: SeasonFsa578 = { ...FSA, fields: [...FSA.fields, { ...FSA.fields[0], field: "4", reported_acres: 40.3 }] };
-    const season = proposal(fsa, COVERAGE, [...FIELDS, east]);
+describe("a unit with several fields", () => {
+  // East 40 is a second field in North 80's tract: 40.30 acres on the FSA-578 and on the map.
+  const EAST: MappedField = { id: "east-40", name: "East 40", fsa_farm: "1234", fsa_tract: "5678", fsa_field: "4", mapped_acres: 40.3 };
+  const THREE_FIELDS = [...FIELDS, EAST];
+  const FSA_3: SeasonFsa578 = { ...FSA, fields: [...FSA.fields, { ...FSA.fields[0], field: "4", reported_acres: 40.3, planting_date: "2026-04-30" }] };
+  const [UNIT_1, UNIT_2] = COVERAGE.units;
+  /** The summary with a second row for Unit 1 that names East 40. */
+  const twoRows = (changes: Partial<Unit> = {}): SeasonCoverage => ({
+    ...COVERAGE,
+    units: [UNIT_1, { ...UNIT_1, fsa_field: "4", acres: 40.3, ...changes }, UNIT_2],
+  });
+  /** The summary with one row for Unit 1 that covers all of tract 5678. */
+  const tractRow = (acres: number | null): SeasonCoverage => ({
+    ...COVERAGE,
+    units: [{ ...UNIT_1, fsa_field: null, acres }, UNIT_2],
+  });
+
+  it("treats rows with the same unit number as one unit with several fields", () => {
+    const season = proposal(FSA_3, twoRows(), THREE_FIELDS);
+    expect(season.units.map((u) => [u.unitNumber, u.fields.map((f) => f.fieldName)])).toEqual([
+      ["1", ["North 80", "East 40"]],
+      ["2", ["South 40"]],
+    ]);
+    expect(season.uninsuredFields).toEqual([]);
+  });
+
+  it("adds up the unit's fields for its acres and its guarantee", () => {
+    const [unit1, unit2] = proposal(FSA_3, twoRows(), THREE_FIELDS).units;
+    expect(unit1.plantedAcres).toBeCloseTo(120.5, 9);
+    // The summary's own acres for the unit are its rows added up: 80.00 + 40.30.
+    expect(unit1.coverageAcres).toBeCloseTo(120.3, 9);
+    // 180 × 0.75 × 120.50 × 1
+    expect(unit1.guaranteeBu).toBeCloseTo(16_267.5, 9);
+    expect(Math.round(unit2.guaranteeBu)).toBe(3_600);
+  });
+
+  it("checks acres field by field: only North 80's row disagrees", () => {
+    const season = proposal(FSA_3, twoRows(), THREE_FIELDS);
+    expect(season.flags).toEqual([
+      {
+        type: "acre_mismatch",
+        message:
+          "North 80: your FSA-578 shows 80.20 acres, but your Summary of Coverage shows 80.00. Your map measures 80.20. Tell your agent before harvest.",
+        about: { record: "field", fieldId: NORTH.id },
+        fieldIds: [NORTH.id],
+      },
+    ]);
+    const east = season.units[0].fields[1];
+    expect([east.plantedAcres, east.coverageAcres, east.mappedAcres, east.coverageTract]).toEqual([40.3, 40.3, 40.3, null]);
+  });
+
+  it("flags each field of the unit on its own", () => {
+    const season = proposal(FSA_3, twoRows({ acres: 40 }), [...FIELDS, { ...EAST, mapped_acres: 41.5 }]);
+    expect(season.flags.map((f) => [f.about, f.message])).toEqual([
+      [
+        { record: "field", fieldId: NORTH.id },
+        "North 80: your FSA-578 shows 80.20 acres, but your Summary of Coverage shows 80.00. Your map measures 80.20. Tell your agent before harvest.",
+      ],
+      [
+        { record: "field", fieldId: "east-40" },
+        "East 40: your FSA-578 shows 40.30 acres, but your Summary of Coverage shows 40.00. Your map measures 41.50. Tell your agent before harvest.",
+      ],
+    ]);
+  });
+
+  it("stops with one sentence when a unit's rows disagree on its type, practice or share", () => {
+    expect(problems(FSA_3, twoRows({ insured_share: 0.5 }), THREE_FIELDS)).toEqual([
+      "Unit 1 has rows on the Summary of Coverage that disagree on its share, so it can't be set up. Ask your agent which is right.",
+    ]);
+    expect(problems(FSA_3, twoRows({ unit_type: "optional", practice: "irrigated" }), THREE_FIELDS)).toEqual([
+      "Unit 1 has rows on the Summary of Coverage that disagree on its type and practice, so it can't be set up. Ask your agent which is right.",
+    ]);
+    expect(problems(FSA_3, twoRows({ unit_type: "optional", practice: "irrigated", insured_share: 0.5 }), THREE_FIELDS)).toEqual([
+      "Unit 1 has rows on the Summary of Coverage that disagree on its type, practice and share, so it can't be set up. Ask your agent which is right.",
+    ]);
+  });
+
+  it("can't take the same field twice in a unit", () => {
+    expect(problems(FSA_3, twoRows({ fsa_field: "3" }), THREE_FIELDS)).toEqual([
+      "North 80 is listed twice in Unit 1 on the Summary of Coverage.",
+    ]);
+  });
+
+  it("lets a row with a farm and tract but no field number cover every FSA-578 line in that tract", () => {
+    const season = proposal(FSA_3, tractRow(120.5), THREE_FIELDS);
+    expect(season.units[0].fields.map((f) => [f.fieldName, f.plantedAcres, f.coverageAcres, f.coverageTract])).toEqual([
+      ["North 80", 80.2, 120.5, "5678"],
+      ["East 40", 40.3, 120.5, "5678"],
+    ]);
+    expect(season.units[0].plantedAcres).toBeCloseTo(120.5, 9);
+    expect(season.units[0].guaranteeBu).toBeCloseTo(16_267.5, 9);
+    expect(season.flags).toEqual([]);
+    // South 40 is in another tract and keeps its own row.
+    expect(season.units[1].fields.map((f) => f.fieldName)).toEqual(["South 40"]);
+  });
+
+  it("compares a tract row with its fields' FSA-578 acres added up, and each field with the map", () => {
+    const season = proposal(FSA_3, tractRow(120), [...FIELDS, { ...EAST, mapped_acres: 38 }]);
+    expect(season.flags).toEqual([
+      {
+        type: "acre_mismatch",
+        message:
+          "Tract 5678 (North 80 and East 40): your FSA-578 shows 120.50 acres, but your Summary of Coverage shows 120.00 for the tract. Tell your agent before harvest.",
+        about: { record: "unit", unitNumber: "1" },
+        fieldIds: [NORTH.id, "east-40"],
+      },
+      {
+        type: "acre_mismatch",
+        message:
+          "East 40: your map measures 38.00 acres, but your FSA-578 shows 40.30. Check the field's outline, or tell your agent if the FSA-578 is wrong.",
+        about: { record: "field", fieldId: "east-40" },
+        fieldIds: ["east-40"],
+      },
+    ]);
+  });
+
+  it("treats a tract row over a single field like a row that names it", () => {
+    const season = proposal(FSA, tractRow(80), FIELDS);
+    expect(season.units[0].fields.map((f) => [f.fieldName, f.coverageAcres, f.coverageTract])).toEqual([["North 80", 80, null]]);
+    expect(season.flags.map((f) => [f.about, f.message])).toEqual([
+      [
+        { record: "field", fieldId: NORTH.id },
+        "North 80: your FSA-578 shows 80.20 acres, but your Summary of Coverage shows 80.00. Your map measures 80.20. Tell your agent before harvest.",
+      ],
+    ]);
+  });
+
+  it("lets a row that names a field take it out of a row for its tract", () => {
+    // Unit 1 covers tract 5678; Unit 3 names East 40 on its own.
+    const coverage: SeasonCoverage = {
+      ...COVERAGE,
+      units: [{ ...UNIT_1, fsa_field: null, acres: 80.2 }, UNIT_2, { ...UNIT_1, unit_number: "3", fsa_field: "4", acres: 40.3 }],
+    };
+    const season = proposal(FSA_3, coverage, THREE_FIELDS);
+    expect(season.units.map((u) => [u.unitNumber, u.fields.map((f) => f.fieldName)])).toEqual([
+      ["1", ["North 80"]],
+      ["2", ["South 40"]],
+      ["3", ["East 40"]],
+    ]);
+    expect(season.flags).toEqual([]);
+  });
+
+  it("can't set up a tract that the FSA-578 has nothing in, or that two rows cover", () => {
+    expect(problems(FSA, withUnit(1, { fsa_tract: "7000", fsa_field: null }))).toEqual([
+      "Unit 2 covers FSA farm 1234, tract 7000, but your FSA-578 has no corn in that tract.",
+    ]);
+    const twice: SeasonCoverage = { ...COVERAGE, units: [{ ...UNIT_1, fsa_field: null }, { ...UNIT_2, fsa_tract: "5678", fsa_field: null }] };
+    expect(problems(FSA, twice)).toEqual(["FSA farm 1234, tract 5678 is in both Unit 1 and Unit 2 on the Summary of Coverage."]);
+  });
+
+  it("keeps a field of the tract that the summary's rows leave out, as not insured", () => {
+    // The summary still names only North 80 for Unit 1, so East 40 is in no unit.
+    const season = proposal(FSA_3, COVERAGE, THREE_FIELDS);
+    expect(season.uninsuredFields.map((f) => [f.fieldName, f.plantedAcres])).toEqual([["East 40", 40.3]]);
     expect(season.flags.map((f) => f.type)).toEqual(["uninsured_field", "acre_mismatch"]);
     expect(season.units[0]).toMatchObject({ plantedAcres: 80.2, fields: [{ fieldName: "North 80" }] });
   });
@@ -317,9 +496,12 @@ describe("what stops a season from being set up", () => {
     ]);
   });
 
-  it("a unit with no number, a number used twice, or no share", () => {
+  it("a unit with no number, rows that disagree, or no share", () => {
     expect(problems(FSA, withUnit(1, { unit_number: null }))).toContain("A unit's number couldn't be read from the Summary of Coverage.");
-    expect(problems(FSA, withUnit(1, { unit_number: "1" }))).toContain("Unit 1 is on the Summary of Coverage twice.");
+    // The same number on two rows is one unit; here its two rows disagree on the share.
+    expect(problems(FSA, withUnit(1, { unit_number: "1" }))).toEqual([
+      "Unit 1 has rows on the Summary of Coverage that disagree on its share, so it can't be set up. Ask your agent which is right.",
+    ]);
     expect(problems(FSA, withUnit(1, { insured_share: null }))).toEqual(["Unit 2's share couldn't be read from the Summary of Coverage."]);
     expect(problems(FSA, withUnit(1, { insured_share: 66.67 }))).toEqual(["Unit 2's share couldn't be read from the Summary of Coverage."]);
   });

@@ -44,6 +44,23 @@ describe("unitOfTicket", () => {
   });
 });
 
+describe("a field that isn't insured", () => {
+  // West 20 has a season, but no unit.
+  const withUninsured = [...fieldSeasons, { field_id: "west-20", crop_year: 2026, unit_id: null }];
+
+  it("has no unit for its tickets", () => {
+    expect(unitOfTicket(ticket("west-20", 400, 395), withUninsured)).toBeNull();
+  });
+
+  it("counts toward no unit's total, and doesn't stop the others from adding up", () => {
+    const totals = unitTotals(units, withUninsured, [ticket("north-80", 961.69, 956.73), ticket("west-20", 400, 395)]);
+    expect(totals.map((t) => [t.unitNumber, t.tickets, t.productionToCountBu])).toEqual([
+      ["1", 1, 961.69],
+      ["2", 0, 0],
+    ]);
+  });
+});
+
 describe("unitTotals", () => {
   it("is zero for every unit before any ticket", () => {
     expect(unitTotals(units, fieldSeasons, [])).toEqual([

@@ -2,7 +2,7 @@ import { getDb } from "@/lib/db/client";
 import { loadSeasonTotals, type SeasonTotals as Totals } from "@/lib/db/season-totals";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { countOf, formatWholeBushels } from "@/lib/format";
+import { countOf, formatAcres, formatWholeBushels } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
@@ -45,6 +45,15 @@ export async function SeasonTotals() {
         />
       ))}
       <Total figure={null} label="Loads today" />
+      {season.uninsuredFields.length > 0 ? (
+        <div className="col-span-3 rounded-xl bg-yellow-100 px-4 py-3">
+          <p className="text-sm font-semibold text-ink">Not insured</p>
+          <p className="text-base text-ink">
+            {season.uninsuredFields.map((field) => `${field.fieldName} (${formatAcres(field.plantedAcres)} acres)`).join(", ")}.
+            Grain from {season.uninsuredFields.length === 1 ? "this field" : "these fields"} isn&apos;t counted in a unit&apos;s total.
+          </p>
+        </div>
+      ) : null}
     </>
   );
 }

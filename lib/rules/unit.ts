@@ -75,10 +75,11 @@ export function guaranteeBushels({
 
 /**
  * A unit's planted acres: its fields' planted acres for one crop year, added
- * up. These are the acres its guarantee is figured on.
+ * up. These are the acres its guarantee is figured on. A field that isn't
+ * insured has no unit, so it is in none of them.
  */
 export function unitPlantedAcres(
-  fieldSeasons: readonly { unit_id: string; crop_year: number; planted_acres: number }[],
+  fieldSeasons: readonly { unit_id: string | null; crop_year: number; planted_acres: number }[],
   unitId: string,
   cropYear: number,
 ): number {
