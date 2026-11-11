@@ -1,8 +1,8 @@
 # GrainClaim: real data to use as sample inputs
 
-_Last updated: November 8, 2026. Organized by the stages in `docs/build-plan.md`. Use these when swapping placeholder data for realistic data (Milestone 8), and as layout references for the sample documents (Milestone 1)._
+_Last updated: November 8, 2026. Organized by the part of `docs/build-plan.md` each one feeds. Use these when swapping placeholder data for realistic data (under "After the hackathon"), and as layout references for the sample documents._
 
-The demo's farm (Dave's Farm, Main Street Elevator) stays made up and marked SAMPLE. This list is real public data that makes those samples look and behave like the real thing: real field shapes, real form layouts, real prices and county yields.
+The sample farm (Dave's Farm, Main Street Elevator) stays made up and marked SAMPLE. This list is real public data that makes those samples look and behave like the real thing: real field shapes, real form layouts, real prices and county yields.
 
 ## Quick summary
 
@@ -17,7 +17,7 @@ The demo's farm (Dave's Farm, Main Street Elevator) stays made up and marked SAM
 | Settlements | Field lists from grain accounting software; a real co-op's shrink and drying schedule | What our sample settlement shows, with realistic deductions |
 | Report and claim | NASS county yields for Story County; RMA corn loss adjustment handbook | "Yield far from county" flag; claim worksheets |
 
-## Milestone 1: seed data
+## Seed data
 
 ### Field outlines: USDA Crop Sequence Boundaries (CSB)
 
@@ -50,7 +50,7 @@ farmers.gov lets farmers export their own field boundaries as ESRI shapefiles or
 - **USGS Imagery Only basemap:** a US government tile service built on NAIP imagery.
 - **USDA NAIP (National Agriculture Imagery Program):** the aerial photos FSA itself uses, about 1-meter resolution, available as an image service at imagery.geoplatform.gov.
 
-## Milestone 1: sample documents
+## Sample documents
 
 ### Scale tickets: Wisconsin's SAMPLE tickets
 
@@ -96,7 +96,7 @@ For realistic numbers, Dunkerton Co-op (Iowa) publishes its harvest policies:
 
 Use the numbers, not the company's name.
 
-## Milestones 3 and 7: season setup and the report
+## Season setup and the report
 
 - **2026 projected price (RMA):** corn $4.62 per bushel, volatility factor 0.15; soybeans $11.09, volatility 0.13. The seed policy uses $4.62 as its projected price.
 - **Story County corn yields (NASS county estimates):** 207.1 bu/acre in 2022 and 211.4 in 2023. 2025 county yields were released around May 2026 and are in NASS Quick Stats. Use these for the "yield far from county" flag: Unit 1's roughly 110 bu/acre after hail is far below the county.
@@ -105,7 +105,7 @@ Use the numbers, not the company's name.
 ## Ground rules for real data
 
 - **Real farmer data** (CLU exports, real policies) only with permission, and never committed to the repo.
-- **Real businesses' numbers, not their names or designs.** The demo's elevator and insurance company stay fictional.
+- **Real businesses' numbers, not their names or designs.** The sample elevator and insurance company stay fictional.
 - **Government forms** (FSA-578) are fine to copy for layout, filled with made-up data and marked SAMPLE.
 - **Credit what the licenses require:** Esri imagery needs attribution. CSB and NAIP are public domain.
 

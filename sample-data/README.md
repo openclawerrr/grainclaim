@@ -1,6 +1,6 @@
 # Sample data (SAMPLE: all made up)
 
-Everything in this folder is invented for the GrainClaim demo. Dave's Farm, its fields, bins, trucks, policy and Main Street Elevator are not real.
+Everything in this folder is invented for GrainClaim's sample farm. Dave's Farm, its fields, bins, trucks, policy and Main Street Elevator are not real.
 
 The farm sits on real ground in rural Story County, Iowa, so its map lines up with the aerial photo: the two field outlines are cut from public crop-field outlines, and the bins stand on a real farmstead's bins. That says nothing about who owns or farms that land. The public data this uses is listed under "Public data in `reference/`".
 
@@ -9,10 +9,10 @@ The farm sits on real ground in rural Story County, Iowa, so its map lines up wi
 | File | What it holds | Loaded by stage |
 |---|---|---|
 | `farm.json` | The permanent farm layer without fields: the insured, Main Street Elevator, Bins 3 and 4, Trucks 1 and 2 | `farm-base`, except Bin 3, which loads in `bin-3` |
-| `farm.geojson` | North 80 and South 40 as field outlines with FSA numbers. Demo beat 1 imports this same file live. The outlines are written by `npm run place-fields` | `fields` |
-| `nearby-outlines.geojson` | The outlines GrainClaim chooses from when it reads a photo of Dave's FSA map: North 80 and South 40 with the same coordinates as `farm.geojson`, and six real neighboring fields. No outline has a name or FSA numbers; the map photo supplies those. Made by `npm run build-outlines` | Not loaded by the seed. The app reads it when Dave adds his FSA map photo in demo beat 1 |
+| `farm.geojson` | North 80 and South 40 as field outlines with FSA numbers, for the `fields` seed stage. In the app, the same two fields come from a photo of the FSA map. The outlines are written by `npm run place-fields` | `fields` |
+| `nearby-outlines.geojson` | The outlines GrainClaim chooses from when it reads a photo of Dave's FSA map: North 80 and South 40 with the same coordinates as `farm.geojson`, and six real neighboring fields. No outline has a name or FSA numbers; the map photo supplies those. Made by `npm run build-outlines` | Not loaded by the seed. The app reads it when Dave adds his FSA map photo |
 | `season-2026.json` | The 2026 corn policy, Units 1 and 2, and a field season for each field | `season-2026` |
-| `documents-2026.json` | Every value on Dave's 2026 sample documents (6 scale tickets, the FSA map, the FSA-578, the Summary of Coverage, the settlement), keyed by document name. It's the answer key for the reading tests | Not loaded: the documents are read live in the demo |
+| `documents-2026.json` | Every value on Dave's 2026 sample documents (6 scale tickets, the FSA map, the FSA-578, the Summary of Coverage, the settlement), keyed by document name. It's the answer key for the reading tests | Not loaded: the documents are read live in the app |
 | `print/` | The documents as one-page PDFs, made from `documents-2026.json` by `npm run print-docs`. How to print, fill in and photograph them: [`print/README.md`](print/README.md) | Not loaded |
 | `photos/` | Phone photos of the printed tickets, the FSA-578 and the FSA map, named after each document (`ticket-3.jpg`). Inputs for the reading tests. The map's photo has no GPS: see [`photos/README.md`](photos/README.md) | Not loaded |
 | `reference/` | Real blank forms (the Wisconsin SAMPLE scale ticket, the FSA-578), for layout only, and the public data the outlines and the FSA map are built from (see "Public data in `reference/`") | Not loaded |
@@ -60,7 +60,7 @@ Every sample document says "SAMPLE ONLY" at the top and bottom and carries a fai
 
 ```bash
 npm run seed                            # remove the sample farm, then load every stage
-npm run seed -- --through farm-base     # demo beat 1: the farm name, elevator, trucks and Bin 4; no Bin 3, fields or season
+npm run seed -- --through farm-base     # the farm name, elevator, trucks and Bin 4; no Bin 3, fields or season, to add them in the app
 npm run seed -- --through bin-3         # Bin 3 too, but no fields or season
 npm run seed -- --through fields        # fields too, but no 2026 season: set it up in the app from the FSA-578 and Summary of Coverage
 npm run seed -- --reset-only            # remove the sample farm, load nothing
@@ -69,7 +69,7 @@ npm run seed -- --list                  # list the stages
 
 The database is shared, so seeding replaces the sample farm for everyone. Tell the team before you run it.
 
-Before demo beat 1, run `--through farm-base`. A live import of `farm.geojson` would otherwise fail, because North 80 and South 40 already exist with the same FSA numbers. Bin 3 is left out for the same reason: Dave adds it from the map (36 ft across, 24 ft to the eave), and the app won't save a second bin with a name the farm already has. A bin added live gets its own ID, not Bin 3's fixed one; the next reset removes it with the rest of the sample farm.
+To add the fields and Bin 3 in the app, run `--through farm-base` first. Adding fields from the FSA map photo skips a field whose FSA numbers are already on the farm, so with North 80 and South 40 seeded there is nothing to add. Bin 3 is left out for the same reason: Dave adds it from the map (36 ft across, 24 ft to the eave), and the app won't save a second bin with a name the farm already has. A bin added in the app gets its own ID, not Bin 3's fixed one; the next reset removes it with the rest of the sample farm.
 
 ## Values
 
@@ -94,9 +94,9 @@ Before demo beat 1, run `--through farm-base`. A live import of `farm.geojson` w
 
 **The season, seeded or set up in the app.** The `season-2026` stage loads the policy, units and field seasons directly, with no documents and no flag. Setting the season up in the app from `photos/fsa-578.jpg` and `print/summary-of-coverage.pdf` gives the same policy, units and field seasons under new IDs, plus the two saved documents and the acre-mismatch flag (80.20 vs 80.00). Its field seasons have no planting-completed date, because the FSA-578 prints one planting date per field. To do that, seed `--through fields` first: a season that is already there is never replaced. The reset removes a season and documents added in the app along with the rest of the sample farm, and it reads the `document` table, so the database needs that migration before the seed will run.
 
-Not loaded yet: the harvest log, trips, tickets, the settlement, elevator truck #22's pickup and the hail notice. They belong to later stages or happen live in the demo. The documents in `documents-2026.json` aren't loaded either; the demo reads them live, so the acre-mismatch flag (80.20 vs 80.00) and the missing-load flag (ticket 5) come from reading them.
+Not loaded yet: the harvest log, trips, tickets, the settlement, elevator truck #22's load out of Bin 3 and the hail notice. They belong to later seed stages or are entered in the app. The documents in `documents-2026.json` aren't loaded either; the app reads them live, so the acre-mismatch flag (80.20 vs 80.00) and the missing-load flag (ticket 5) come from reading them.
 
-## Adding a demo stage
+## Adding a seed stage
 
 1. Add the stage's data file here.
 2. Add one entry at the end of `STAGES` in `scripts/seed/stages.ts`, listing the rows it adds.
