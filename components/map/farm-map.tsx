@@ -1,16 +1,19 @@
 "use client";
 
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { GeoJSONSource, Map as MapLibreMap, MapMouseEvent, Marker } from "maplibre-gl";
 import { addBinAction, type AddBinState } from "@/app/bins/actions";
+import { confirmFieldsAction, readFsaMapAction, type ConfirmFieldsState, type ReadFsaMapState } from "@/app/fields/actions";
 import { Button } from "@/components/ui/button";
 import { MAX_BIN_NAME_LENGTH, typedNumber, type SavedBin } from "@/lib/bins/add-bin";
 import type { MapField } from "@/lib/db/farm-map";
-import { formatDecimal, formatWholeBushels } from "@/lib/format";
+import { formatAcres, formatDecimal, formatWholeBushels } from "@/lib/format";
 import { boundsOf, outlineCenter, type LonLat } from "@/lib/map/geometry";
 import { binCapacityBushels, binSizeProblem } from "@/lib/rules/bin-capacity";
+import { listOf } from "@/lib/rules/document-checks";
 import { cn } from "@/lib/utils";
+import { ChooseFsaMap, fsaNumbers, ReviewProposedFields } from "./fields-from-fsa-map";
 
 type MapLibre = typeof import("maplibre-gl");
 
@@ -26,6 +29,11 @@ const FARM_ZOOM = 16.5;
 const FARMSTEAD_ZOOM = 18;
 
 const IDLE: AddBinState = { status: "idle" };
+const NOT_READ: ReadFsaMapState = { status: "idle" };
+const NOT_CONFIRMED: ConfirmFieldsState = { status: "idle" };
+/** The room the panel of proposed fields takes at the map's left edge, in pixels, so the outlines are shown beside it. */
+const REVIEW_PANEL_ROOM = 424;
+const NO_OUTLINES = { type: "FeatureCollection" as const, features: [] };
 
 /** A color from docs/design.md, read from the page so no hex value lives in a screen. */
 const designColor = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -65,11 +73,17 @@ function spotElement(): HTMLElement {
 
 /**
  * The farm map: satellite imagery with the farm's fields outlined and its
- * bins marked, and the one thing the farmer does here, adding a bin
- * (docs/spec.md Part 11, docs/design.md).
+ * bins marked, and the two things the farmer does here (docs/spec.md Part 11,
+ * docs/design.md).
  *
- * He clicks "Add a bin", clicks the spot where it stands, and enters its
- * diameter and eave height in the panel beside the map. Both are required and
+ * Adding fields: he clicks "Add fields from FSA map", chooses the photo of
+ * his FSA map and clicks roughly where his farm is. The fields read from the
+ * map come back paired with outlines, drawn dashed with their FSA numbers and
+ * acres. He names them in the panel beside the map and confirms; only then
+ * are they fields, drawn solid.
+ *
+ * Adding a bin: he clicks "Add a bin", clicks the spot where it stands, and
+ * enters its diameter and eave height in the panel. Both are required and
  * neither has a default. The capacity shows as he types; the saved figure is
  * the one the database calculates.
  */
@@ -82,6 +96,24 @@ export function FarmMap({ bins, fields, nextBinName }: { bins: SavedBin[]; field
   const [mapProblem, setMapProblem] = useState(false);
   const [ready, setReady] = useState(false);
 
+  // Fields from the FSA map. Each answer is numbered, so the file chooser starts fresh after one: the browser
+  // empties it when a form is sent.
+  const [read, submitRead, reading] = useActionState(
+    async (previous: { answer: ReadFsaMapState; count: number }, formData: FormData) => ({
+      answer: await readFsaMapAction(previous.answer, formData),
+      count: previous.count + 1,
+    }),
+    { answer: NOT_READ, count: 0 },
+  );
+  const [confirmed, submitConfirm, confirming] = useActionState(confirmFieldsAction, NOT_CONFIRMED);
+  /** The last answers from the server the farmer has moved on from. */
+  const [seenRead, setSeenRead] = useState<ReadFsaMapState>(NOT_READ);
+  const [seenConfirm, setSeenConfirm] = useState<ConfirmFieldsState>(NOT_CONFIRMED);
+  const [addingFields, setAddingFields] = useState(false);
+  const [farmSpot, setFarmSpot] = useState<LonLat | null>(null);
+  /** The proposed outline he last clicked, numbered so clicking the same one twice counts twice. */
+  const [picked, setPicked] = useState<{ key: string; at: number } | null>(null);
+
   const container = useRef<HTMLDivElement>(null);
   const lib = useRef<MapLibre | null>(null);
   const map = useRef<MapLibreMap | null>(null);
@@ -89,7 +121,25 @@ export function FarmMap({ bins, fields, nextBinName }: { bins: SavedBin[]; field
   // A bin that was just saved ends the adding, and shows until the farmer starts another.
   const justSaved = state.status === "saved" && state !== seen ? state.bin : null;
   const adding = placing && !justSaved;
-  const pin = adding ? spot : null;
+
+  // Fields that were just saved end the adding, and are named until the farmer starts something else.
+  const fieldsSaved = confirmed.status === "saved" && confirmed !== seenConfirm ? confirmed : null;
+  const fieldsOpen = addingFields && !fieldsSaved;
+  const readAnswer = read.answer !== seenRead ? read.answer : NOT_READ;
+  /** The fields his map would add, waiting for him to confirm. */
+  const proposed = fieldsOpen && readAnswer.status === "ready" ? readAnswer : null;
+  const choosingFsaMap = fieldsOpen && !proposed;
+  const readProblems = choosingFsaMap && readAnswer.status === "problem" ? readAnswer.messages : null;
+  const confirmProblem = proposed && confirmed.status === "problem" && confirmed !== seenConfirm ? confirmed : null;
+  // The saved fields show at once; the list from the server catches up a moment later.
+  const shownFields = useMemo(() => {
+    const added = fieldsSaved?.fields.filter((field) => !fields.some((have) => have.id === field.id)) ?? [];
+    return added.length > 0 ? [...fields, ...added] : fields;
+  }, [fields, fieldsSaved]);
+
+  /** What a click on the map means right now. */
+  const picking = adding ? "bin" : choosingFsaMap && !reading ? "farm" : null;
+  const pin = adding ? spot : choosingFsaMap ? farmSpot : null;
   const problem = state.status === "problem" && state !== seen ? state : null;
   // The saved bin shows at once; the list from the server catches up a moment later.
   const shownBins = justSaved && !bins.some((bin) => bin.id === justSaved.id) ? [...bins, justSaved] : bins;
@@ -146,6 +196,20 @@ export function FarmMap({ bins, fields, nextBinName }: { bins: SavedBin[]; field
             source: "fields",
             paint: { "line-color": designColor("--green-500"), "line-width": 2.5 },
           });
+          // Outlines proposed from the FSA map: dashed, because they aren't fields until the farmer confirms them.
+          created.addSource("proposals", { type: "geojson", data: NO_OUTLINES });
+          created.addLayer({
+            id: "proposals-fill",
+            type: "fill",
+            source: "proposals",
+            paint: { "fill-color": designColor("--green-100"), "fill-opacity": 0.4 },
+          });
+          created.addLayer({
+            id: "proposals-line",
+            type: "line",
+            source: "proposals",
+            paint: { "line-color": designColor("--card"), "line-width": 2.5, "line-dasharray": [3, 2] },
+          });
           lib.current = maplibre;
           map.current = created;
           setReady(true);
@@ -170,14 +234,14 @@ export function FarmMap({ bins, fields, nextBinName }: { bins: SavedBin[]; field
     const source = map.current.getSource<GeoJSONSource>("fields");
     source?.setData({
       type: "FeatureCollection",
-      features: fields.map((field) => ({
+      features: shownFields.map((field) => ({
         type: "Feature",
         id: field.id,
         properties: { name: field.name },
         geometry: { type: "Polygon", coordinates: field.outline },
       })),
     });
-    const labels = fields.map((field) =>
+    const labels = shownFields.map((field) =>
       new lib.current!.Marker({
         element: labelElement(LABEL, field.name, field.acres === null ? null : `${field.acres.toFixed(2)} ac`),
       })
@@ -185,7 +249,54 @@ export function FarmMap({ bins, fields, nextBinName }: { bins: SavedBin[]; field
         .addTo(map.current!),
     );
     return () => labels.forEach((label) => label.remove());
-  }, [ready, fields]);
+  }, [ready, shownFields]);
+
+  // Proposed fields: dashed outlines, each with its FSA numbers and the acres the FSA map prints. The map moves
+  // to show them all beside the panel. A click on one puts the cursor in its name.
+  useEffect(() => {
+    if (!ready || !map.current || !lib.current) return;
+    const current = map.current;
+    const source = current.getSource<GeoJSONSource>("proposals");
+    const outlines = proposed?.proposal.fields ?? [];
+    source?.setData({
+      type: "FeatureCollection",
+      features: outlines.map((field) => ({
+        type: "Feature",
+        properties: { key: field.key },
+        geometry: { type: "Polygon", coordinates: field.outline },
+      })),
+    });
+    if (outlines.length === 0) return;
+
+    const labels = outlines.map((field) =>
+      new lib.current!.Marker({ element: labelElement(LABEL, fsaNumbers(field), `${formatAcres(field.fsaMapAcres)} ac`) })
+        .setLngLat(outlineCenter(field.outline[0]))
+        .addTo(current),
+    );
+    const bounds = boundsOf(outlines.flatMap((field) => field.outline[0]));
+    if (bounds) {
+      // Beside the panel when the map is wide enough, and never more room than the map can spare.
+      const left = Math.min(REVIEW_PANEL_ROOM, current.getContainer().clientWidth * 0.6);
+      current.fitBounds(bounds, { padding: { top: 72, right: 48, bottom: 72, left }, maxZoom: FARM_ZOOM, duration: 700 });
+    }
+    const onClick = (event: MapMouseEvent & { features?: { properties?: { key?: unknown } }[] }) => {
+      const key = event.features?.[0]?.properties?.key;
+      if (typeof key === "string") setPicked({ key, at: event.originalEvent.timeStamp });
+    };
+    const pointer = () => (current.getCanvas().style.cursor = "pointer");
+    const noPointer = () => (current.getCanvas().style.cursor = "");
+    current.on("click", "proposals-fill", onClick);
+    current.on("mouseenter", "proposals-fill", pointer);
+    current.on("mouseleave", "proposals-fill", noPointer);
+    return () => {
+      labels.forEach((label) => label.remove());
+      current.off("click", "proposals-fill", onClick);
+      current.off("mouseenter", "proposals-fill", pointer);
+      current.off("mouseleave", "proposals-fill", noPointer);
+      current.getCanvas().style.cursor = "";
+      source?.setData(NO_OUTLINES);
+    };
+  }, [ready, proposed]);
 
   // Bins: a dot at each one, with its name and capacity. Going north to south, labels take turns above and
   // below their dots, so two bins standing side by side never have their labels between them.
@@ -208,18 +319,23 @@ export function FarmMap({ bins, fields, nextBinName }: { bins: SavedBin[]; field
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, shownBins.map((bin) => `${bin.id}:${bin.name}:${bin.capacityBu}`).join("|")]);
 
-  // While a bin is being added, a click on the map is where it stands. Clicking again moves it.
+  // While a bin is being added, a click on the map is where it stands; while an FSA map is being added, it is
+  // roughly where the farm is. Clicking again moves it.
   useEffect(() => {
-    if (!ready || !map.current || !adding) return;
+    if (!ready || !map.current || !picking) return;
     const current = map.current;
-    const onClick = (event: MapMouseEvent) => setSpot([event.lngLat.lng, event.lngLat.lat]);
+    const onClick = (event: MapMouseEvent) => {
+      const at: LonLat = [event.lngLat.lng, event.lngLat.lat];
+      if (picking === "bin") setSpot(at);
+      else setFarmSpot(at);
+    };
     current.on("click", onClick);
     current.getCanvas().style.cursor = "crosshair";
     return () => {
       current.off("click", onClick);
       current.getCanvas().style.cursor = "";
     };
-  }, [ready, adding]);
+  }, [ready, picking]);
 
   // The pin at the chosen spot.
   useEffect(() => {
@@ -228,7 +344,30 @@ export function FarmMap({ bins, fields, nextBinName }: { bins: SavedBin[]; field
     return () => void marker.remove();
   }, [ready, pin]);
 
+  /** Puts away whatever the fields panel last showed. */
+  function leaveFields() {
+    setSeenRead(read.answer);
+    setSeenConfirm(confirmed);
+    setPicked(null);
+  }
+
+  function startFields() {
+    leaveFields();
+    setSeen(state);
+    setPlacing(false);
+    setFarmSpot(null);
+    setAddingFields(true);
+  }
+
+  function stopFields() {
+    leaveFields();
+    setFarmSpot(null);
+    setAddingFields(false);
+  }
+
   function startAdding() {
+    leaveFields();
+    setAddingFields(false);
     setSeen(state);
     setSpot(null);
     setPlacing(true);
@@ -259,16 +398,63 @@ export function FarmMap({ bins, fields, nextBinName }: { bins: SavedBin[]; field
         </p>
       ) : null}
 
-      <div className="absolute top-4 left-4 flex w-80 flex-col gap-3">
-        {!adding ? (
-          <Button
-            variant="outline"
-            onClick={startAdding}
-            disabled={!ready}
-            className="h-12 self-start rounded-xl bg-card px-5 text-base font-semibold shadow-card"
-          >
-            Add a bin
-          </Button>
+      <div className={cn("absolute top-4 left-4 flex max-h-[calc(100%-2rem)] flex-col gap-3", proposed ? "w-96" : "w-80")}>
+        {!adding && !fieldsOpen ? (
+          <div className="flex w-max gap-3">
+            <Button
+              variant="outline"
+              onClick={startFields}
+              disabled={!ready}
+              className="h-12 rounded-xl bg-card px-5 text-base font-semibold shadow-card"
+            >
+              Add fields from FSA map
+            </Button>
+            <Button
+              variant="outline"
+              onClick={startAdding}
+              disabled={!ready}
+              className="h-12 rounded-xl bg-card px-5 text-base font-semibold shadow-card"
+            >
+              Add a bin
+            </Button>
+          </div>
+        ) : null}
+
+        {fieldsSaved ? (
+          <div role="status" className="flex flex-col gap-1 rounded-xl bg-green-100 px-4 py-3 text-base text-ink shadow-card ring-1 ring-line">
+            <p className="font-semibold">
+              {fieldsSaved.fields.length === 0
+                ? "No fields were added."
+                : `${listOf(fieldsSaved.fields.map((field) => field.name))} ${fieldsSaved.fields.length === 1 ? "is" : "are"} on your map.`}
+            </p>
+            {fieldsSaved.skipped.map((sentence) => (
+              <p key={sentence}>{sentence}</p>
+            ))}
+          </div>
+        ) : null}
+
+        {choosingFsaMap ? (
+          <ChooseFsaMap
+            key={read.count}
+            submit={submitRead}
+            reading={reading}
+            spot={farmSpot}
+            problems={readProblems}
+            onCancel={stopFields}
+          />
+        ) : null}
+
+        {proposed ? (
+          <ReviewProposedFields
+            key={proposed.documentId}
+            answer={proposed}
+            submit={submitConfirm}
+            confirming={confirming}
+            problem={confirmProblem}
+            picked={picked}
+            onStartOver={leaveFields}
+            onCancel={stopFields}
+          />
         ) : null}
 
         {justSaved ? (

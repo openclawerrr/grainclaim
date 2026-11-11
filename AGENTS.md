@@ -24,7 +24,7 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 ### Folder layout
 
 - `app/`: screens. `app/api/`: server routes.
-- `components/shell/`: the frame around every screen (top bar, icon rail, role switcher). `components/home/`: the farmer's and agent's home screens. `components/tickets/`: the Add ticket screen. `components/map/`: the farm map on the farmer's home screen, and adding a bin on it. `components/season/`: the season setup screen. `components/ui/`: shadcn/ui components.
+- `components/shell/`: the frame around every screen (top bar, icon rail, role switcher). `components/home/`: the farmer's and agent's home screens. `components/tickets/`: the Add ticket screen. `components/map/`: the farm map on the farmer's home screen, and what he adds on it: fields from a photo of his FSA map, and a bin. `components/season/`: the season setup screen. `components/ui/`: shadcn/ui components.
 - `lib/role/`: the two roles. `getCurrentRole()` in `current-role.ts` reads the current role on the server.
 - `lib/rules/`: calculations, matching rules and flags. Pure functions only: plain data in, results out, no database or framework calls. Every function has Vitest tests next to it.
 - `lib/extract/`: document reading, one schema per document type. `read.ts` holds the one Claude API call that every reader uses.
@@ -33,6 +33,7 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 - `lib/tickets/`: adding a ticket, start to finish (`add-ticket.ts`). The reader and the database are passed in, so its tests never call Claude or Supabase.
 - `lib/season/`: setting up a season from the FSA-578 and Summary of Coverage, start to finish (`setup-season.ts`), built the same way: read and save the documents, then write the season when the farmer confirms. What the season should be, and its flags, is worked out in `lib/rules/season-setup.ts`.
 - `lib/bins/`: adding a bin, start to finish (`add-bin.ts`), built the same way. The database calculates a bin's capacity; `lib/rules/bin-capacity.ts` has the same formula for showing it before the bin is saved.
+- `lib/fields/`: adding fields from a photo of the FSA map, start to finish (`add-fields.ts`), built the same way: read and save the photo and pair its fields with outlines near the farmer's click, then write the fields when he confirms. Which outline pairs with which field (`outline-pairing.ts`), what a new field is called (`field-names.ts`) and what is proposed (`field-proposal.ts`) are worked out in `lib/rules/`. `nearby-outlines.ts` loads the public outlines; for the demo that is `sample-data/nearby-outlines.geojson`.
 - `lib/map/`: small map geometry for screens (where a field's label goes, the area some points cover)
 - `lib/format.ts`: how numbers, dates and times are shown. Calculations never round; screens do.
 - `supabase/migrations/`: database structure changes
@@ -56,6 +57,7 @@ GrainClaim is a demo of one record pipeline for a farmer: farm map → season se
 - The database enforces these rules. Design code to fit them; never work around them:
   - Ticket photos and read values lock once saved. A wrong value gets a `flag` row with `flag_type = 'misread'`, never an edit. The same goes for a row in `document`, which holds every other kind of document the farmer adds (FSA-578, Summary of Coverage, FSA map): its file and read values lock once saved.
   - One policy per insured, crop, state, county and crop year. A season is set up once; the app refuses a second.
+  - A field with `source = 'ai_proposed'` links to the FSA map it came from (`fsa_map_document_id`). A proposal is never a `field` row: fields are written only when the farmer confirms, because the ticket pipeline reads every field row.
   - A field season is insured and has a unit, or is not insured and has none. A field on the FSA-578 that no unit covers is kept that way: guarantees and unit totals skip it.
   - A truck has only one open trip at a time.
   - A photo's SHA-256 hash must be unique.

@@ -5,10 +5,11 @@
  * 1. Start from the fixed IDs in sample-data/ (the insured and the elevator
  *    are the roots).
  * 2. Collect everything that belongs to them, including rows the app made
- *    during a demo: fields imported live from farm.geojson, bins added from
- *    the map, the season set up from the FSA-578 and Summary of Coverage and
- *    those two documents, trips, tickets on those trips, flags on any of
- *    these rows.
+ *    during a demo: fields confirmed from a photo of the FSA map and that
+ *    photo's document, bins added from the map, the season set up from the
+ *    FSA-578 and Summary of Coverage and those two documents, trips, tickets
+ *    on those trips, flags on any of these rows. A field links to the FSA
+ *    map it came from, so fields are deleted before documents.
  * 3. Delete children first, one table at a time, by ID.
  *
  * audit_event is never touched. It is append-only (a trigger blocks update
