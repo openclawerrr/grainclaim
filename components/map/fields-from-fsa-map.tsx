@@ -7,6 +7,7 @@ import { countOf, formatAcres } from "@/lib/format";
 import type { LonLat } from "@/lib/map/geometry";
 import { MAX_FIELD_NAME_LENGTH } from "@/lib/rules/field-names";
 import type { ProposedField } from "@/lib/rules/field-proposal";
+import { sendKeepingForm } from "@/lib/submit-form";
 import { cn } from "@/lib/utils";
 
 const PANEL = "flex flex-col gap-4 rounded-2xl bg-card p-4 shadow-card ring-1 ring-line";
@@ -40,6 +41,9 @@ function Sentences({ title, sentences }: { title?: string; sentences: string[] }
  * Step 1, in the panel beside the map: the farmer chooses the photo of his
  * FSA map and clicks the map roughly where his farm is. That is all he gives;
  * the field numbers, acres and outlines are read and matched on the server.
+ * After a read that fails, the chosen file and the clicked spot are kept: the
+ * form is sent from onSubmit, because React empties a form sent through its
+ * `action` prop.
  */
 export function ChooseFsaMap({
   submit,
@@ -58,7 +62,7 @@ export function ChooseFsaMap({
   const [fileName, setFileName] = useState<string | null>(null);
   return (
     <form
-      action={submit}
+      onSubmit={sendKeepingForm(submit)}
       onKeyDown={(event) => {
         if (event.key === "Escape" && !reading) onCancel();
       }}
