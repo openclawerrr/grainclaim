@@ -56,6 +56,7 @@ describe("stages", () => {
       truck: 2,
       bin: 2,
       field: 2,
+      document: 0,
       buyer: 1,
       insured: 1,
     });
